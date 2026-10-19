@@ -1,0 +1,205 @@
+@model SportCourtManagement_FrontEnd.Models.Tournaments.TournamentDto
+
+@{
+    ViewData["Title"] = "Thanh toán giải đấu #" + Model.TournamentId;
+    var wallet = ViewBag.Wallet as SportCourtManagement_FrontEnd.Models.DTOs.WalletDto;
+    var hasEnough = wallet != null && wallet.Balance >= Model.TotalAmount;
+}
+
+<main class="sc-container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="sc-card p-4 p-md-5" style="background: linear-gradient(145deg, #0D121F, #141B2D); border: 1px solid rgba(79, 110, 247, 0.3); border-radius: 20px; box-shadow: 0 16px 48px rgba(0,0,0,0.5);">
+
+                <!-- Header -->
+                <div class="text-center pb-4 mb-4 border-bottom" style="border-bottom-color: rgba(255,255,255,0.08) !important;">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle mb-3 p-3" style="width: 72px; height: 72px; font-size: 32px; box-shadow: 0 0 24px rgba(79, 110, 247, 0.3);">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <h2 class="text-white font-outfit fw-bold mb-1">Thanh Toán Giải Đấu <span class="text-primary">@Model.TournamentName</span></h2>
+                    <p class="text-sc-muted mb-0">Xác nhận thanh toán phí tổ chức giải đấu bằng ví điện tử của bạn</p>
+                </div>
+
+                <!-- Tournament Info Summary -->
+                <div class="p-4 rounded-4 mb-4" style="background-color: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); font-size: 13.5px;">
+                    <h6 class="text-white font-outfit fw-bold mb-3">Thông tin giải đấu</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-sc-muted">Tên giải đấu:</span>
+                        <span class="text-white fw-bold">@Model.TournamentName</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-sc-muted">Số lịch thi đấu:</span>
+                        <span class="text-white fw-semibold">@Model.Bookings.Count buổi</span>
+                    </div>
+
+                    @{
+                        var allServices = Model.Bookings
+                            .SelectMany(b => b.Services ?? new List<SportCourtManagement_FrontEnd.Models.Tournaments.TournamentBookingServiceItemDto>())
+                            .GroupBy(s => new { s.ServiceId, s.ServiceName })
+                            .Select(g => {
+                                var totalQty = g.Sum(x => x.Quantity);
+                                var totalPrice = g.Sum(x => x.TotalPrice);
+                                var unitPrice = totalQty > 0 ? (totalPrice / totalQty) : (g.FirstOrDefault()?.UnitPrice ?? 0);
+                                return new {
+                                    ServiceId = g.Key.ServiceId,
+                                    ServiceName = g.Key.ServiceName,
+                                    UnitPrice = unitPrice,
+                                    TotalQuantity = totalQty,
+                                    TotalPrice = totalPrice
+                                };
+                            }).ToList();
+                        var totalServiceAmount = allServices.Sum(s => s.TotalPrice);
+                    }
+
+                    @if (allServices.Any())
+                    {
+                        <hr style="border-color: rgba(255,255,255,0.06); margin: 12px 0;" />
+                        <span class="text-white-50 small d-block mb-2 font-outfit fw-bold"><i class="bi bi-cart-check-fill text-warning me-1"></i>Chi tiết dịch vụ đặt kèm giải đấu:</span>
+                        <div class="d-flex flex-column gap-2 mb-2">
+                            @foreach (var svc in allServices)
+                            {
+                                <div class="d-flex justify-content-between align-items-center text-sc-muted p-2 rounded" style="background: rgba(255,255,255,0.02);">
+                                    <span>• @svc.ServiceName <span class="text-white-50">(@svc.UnitPrice.ToString("N0")đ/đơn vị)</span> x<strong class="text-white">@svc.TotalQuantity</strong></span>
+                                    <span class="fw-bold text-white">@svc.TotalPrice.ToString("N0")đ</span>
+                                </div>
+                            }
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top border-white border-opacity-10">
+                            <span class="fw-semibold text-sc-muted">Tổng tiền dịch vụ:</span>
+                            <span class="fw-bold text-warning">@totalServiceAmount.ToString("N0")đ</span>
+                        </div>
+                    }
+
+                    <hr style="border-color: rgba(255,255,255,0.06); margin: 10px 0;" />
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <span class="text-white fw-bold" style="font-size: 15px;">Tổng phí tổ chức:</span>
+                        <span class="font-outfit text-sc-green fw-black" style="font-size: 26px;">@Model.TotalAmount.ToString("N0")đ</span>
+                    </div>
+                </div>
+
+                <!-- Wallet Payment Block -->
+                @Html.AntiForgeryToken()
+                <div class="p-4 rounded-4 mb-4 text-center" style="background-color: #141B2D; border: 1px solid rgba(255,255,255,0.05);">
+                    <h6 class="text-white font-outfit fw-bold mb-3">
+                        <i class="bi bi-wallet2 me-1 text-sc-blue-light"></i> Thanh toán bằng Ví điện tử
+                    </h6>
+
+                    <div class="d-flex justify-content-center gap-5 mb-4 text-start">
+                        <div>
+                            <span class="text-white-50 small d-block mb-1">Số dư ví của bạn</span>
+                            <h4 class="text-white fw-bold mb-0">@(wallet?.Balance.ToString("N0") ?? "0")đ</h4>
+                        </div>
+                        <div class="border-start border-secondary opacity-25"></div>
+                        <div>
+                            <span class="text-white-50 small d-block mb-1">Số tiền cần thanh toán</span>
+                            <h4 class="text-sc-green fw-bold mb-0">@Model.TotalAmount.ToString("N0")đ</h4>
+                        </div>
+                    </div>
+
+                    @if (hasEnough)
+                    {
+                        <button type="button" id="btnPayWithWallet"
+                                class="sc-btn sc-btn-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2"
+                                style="border-radius: 12px; font-weight: 600; font-size: 16px;">
+                            <i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="alert border-0 small text-start py-2 px-3 mb-3"
+                             style="background: rgba(239,68,68,0.1); color: #FCA5A5; border-radius: 8px;">
+                            <i class="bi bi-exclamation-circle-fill me-1"></i>
+                            Số dư ví không đủ. Vui lòng nạp thêm <strong>@((Model.TotalAmount - (wallet?.Balance ?? 0)).ToString("N0"))đ</strong>.
+                        </div>
+                        <a href="/Wallet" class="sc-btn sc-btn-gradient w-100 py-3 text-center text-white text-decoration-none d-block"
+                           style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #4F6EF7 0%, #3B5BDF 100%);">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            Nạp tiền vào ví (@((Model.TotalAmount - (wallet?.Balance ?? 0)).ToString("N0"))đ còn thiếu)
+                        </a>
+                    }
+                </div>
+
+                <!-- Booked Courts Table -->
+                <div class="mt-2 pt-4 border-top" style="border-top-color: rgba(255,255,255,0.08) !important;">
+                    <h6 class="text-white font-outfit fw-bold mb-3">Danh sách lịch thi đấu (@Model.Bookings.Count lịch)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle mb-0" style="background: transparent; font-size: 13px;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                                    <th>Mã Booking</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in Model.Bookings)
+                                {
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <td><span class="font-monospace text-primary fw-bold">#@b.BookingId</span> (@b.BookingCode)</td>
+                                        <td>
+                                            @if (b.Status?.ToString() == "Confirmed" || b.Status?.ToString() == "Paid")
+                                            {
+                                                <span class="badge px-3 py-1 rounded-pill" style="background-color: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4);">
+                                                    <i class="bi bi-check-circle me-1"></i>@b.Status
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge px-3 py-1 rounded-pill" style="background-color: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4);">
+                                                    <i class="bi bi-clock me-1"></i>@b.Status
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="text-sc-green fw-bold">@b.TotalAmount.ToString("N0")đ</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top" style="border-top-color: rgba(255,255,255,0.08) !important;">
+                    <a asp-action="MyTournaments" class="sc-btn sc-btn-outline font-outfit px-4 py-2">
+                        <i class="bi bi-arrow-left me-1"></i> Trở về Quản lý Giải đấu
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        document.getElementById('btnPayWithWallet')?.addEventListener('click', function () {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang xử lý...';
+
+            fetch('/Tournaments/PayWithWallet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    tournamentId: '@Model.TournamentId',
+                    __RequestVerificationToken: document.querySelector('input[name="__RequestVerificationToken"]').value
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    window.location.href = res.redirectUrl;
+                } else {
+                    alert(res.message || 'Thanh toán thất bại.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví';
+                }
+            })
+            .catch(() => {
+                alert('Lỗi kết nối máy chủ.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví';
+            });
+        });
+    </script>
+}

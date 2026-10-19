@@ -1,0 +1,182 @@
+@model SportCourtManagement_FrontEnd.Models.Tournaments.TournamentListViewModel
+@{
+    ViewData["Title"] = "Giải đấu của tôi";
+    var items = Model.PagedData.Items ?? new List<SportCourtManagement_FrontEnd.Models.Tournaments.TournamentDto>();
+    var pendingCount = items.Count(item => string.Equals(item.Status, "Pending", StringComparison.OrdinalIgnoreCase));
+    var bookingCount = items.Sum(item => item.Bookings?.Count ?? 0);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tournament-list.css" asp-append-version="true" />
+}
+
+<main class="sc-container tournament-list-page">
+    <nav class="sc-breadcrumb" aria-label="Điều hướng">
+        <a asp-controller="Home" asp-action="Index">Trang chủ</a>
+        <span>›</span>
+        <span class="text-white fw-medium">Giải đấu của tôi</span>
+    </nav>
+
+    <header class="tl-hero">
+        <div class="tl-hero-top position-relative z-1 d-flex align-items-center justify-content-between gap-3">
+            <div>
+                <div class="tl-eyebrow mb-2"><i class="bi bi-trophy-fill me-1 text-warning"></i> Khu vực ban tổ chức</div>
+                <h1 class="font-outfit mb-2"><i class="bi bi-award-fill me-2" style="color: var(--sc-blue-light);"></i>Giải đấu của tôi</h1>
+                <p class="text-sc-muted mb-0" style="font-size: 13px;">Theo dõi lịch sân, trạng thái duyệt và thanh toán của các giải đấu bạn đã đăng ký.</p>
+            </div>
+            <a asp-action="Create" class="sc-btn sc-btn-primary position-relative z-1">
+                <i class="bi bi-plus-circle me-2"></i>Đặt giải đấu mới
+            </a>
+        </div>
+    </header>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert d-flex align-items-center gap-2 mb-3 py-3 px-4 rounded-3" style="background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.22); color: #6ee7b7;">
+            <i class="bi bi-check-circle-fill"></i><span>@TempData["SuccessMessage"]</span>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert d-flex align-items-center gap-2 mb-3 py-3 px-4 rounded-3" style="background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.22); color: #fca5a5;">
+            <i class="bi bi-exclamation-triangle-fill"></i><span>@TempData["ErrorMessage"]</span>
+        </div>
+    }
+
+    <section class="tl-stat-grid" aria-label="Tổng quan giải đấu">
+        <div class="tl-stat">
+            <span class="tl-stat-icon"><i class="bi bi-collection-play"></i></span>
+            <div><div class="tl-stat-value">@Model.PagedData.TotalCount</div><div class="tl-stat-caption">Tổng giải đấu</div></div>
+        </div>
+        <div class="tl-stat">
+            <span class="tl-stat-icon" style="color: var(--sc-amber-light); background: rgba(245,158,11,.12);"><i class="bi bi-hourglass-split"></i></span>
+            <div><div class="tl-stat-value">@pendingCount</div><div class="tl-stat-caption">Đang chờ xử lý · trang này</div></div>
+        </div>
+        <div class="tl-stat">
+            <span class="tl-stat-icon" style="color: var(--sc-green); background: rgba(16,185,129,.12);"><i class="bi bi-grid-3x3-gap"></i></span>
+            <div><div class="tl-stat-value">@bookingCount</div><div class="tl-stat-caption">Ca sân · trang này</div></div>
+        </div>
+    </section>
+
+    <section class="tl-panel" aria-label="Bộ lọc giải đấu">
+        <form method="get" asp-action="MyTournaments" class="tl-filter-grid">
+            <div>
+                <label class="tl-label form-label" for="keyword">Tìm kiếm</label>
+                <input id="keyword" type="search" name="keyword" value="@Model.Keyword" class="sc-input" placeholder="Tên giải đấu..." />
+            </div>
+            <div>
+                <label class="tl-label form-label" for="status">Trạng thái</label>
+                <select id="status" name="status" class="sc-input">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Pending" selected="@(Model.Status == "Pending")">Chờ xác nhận</option>
+                    <option value="Confirmed" selected="@(Model.Status == "Confirmed")">Đã phê duyệt</option>
+                    <option value="Paid" selected="@(Model.Status == "Paid")">Đã thanh toán</option>
+                    <option value="Cancelled" selected="@(Model.Status == "Cancelled")">Đã hủy</option>
+                </select>
+            </div>
+            <div>
+                <label class="tl-label form-label" for="fromDate">Từ ngày</label>
+                <input id="fromDate" type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="sc-input" />
+            </div>
+            <div>
+                <label class="tl-label form-label" for="toDate">Đến ngày</label>
+                <input id="toDate" type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="sc-input" />
+            </div>
+            <div class="tl-filter-actions">
+                <button type="submit" class="sc-btn sc-btn-primary"><i class="bi bi-search me-1"></i>Lọc</button>
+                <a asp-action="MyTournaments" class="sc-btn sc-btn-secondary" title="Xóa bộ lọc"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </section>
+
+    <section class="tl-table-shell" aria-label="Danh sách giải đấu">
+        <div class="table-responsive">
+            <table class="tl-table">
+                <thead>
+                    <tr>
+                        <th>Mã giải</th>
+                        <th>Tên giải đấu</th>
+                        <th>Ngày đăng ký</th>
+                        <th>Lịch sân</th>
+                        <th>Tạm tính</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (items.Count > 0)
+                    {
+                        foreach (var item in items)
+                        {
+                            var normalizedStatus = item.Status?.ToLowerInvariant() ?? string.Empty;
+                            var statusClass = normalizedStatus switch
+                            {
+                                "pending" => "tl-status-pending",
+                                "confirmed" or "paid" => "tl-status-success",
+                                "cancelled" => "tl-status-cancelled",
+                                _ => "tl-status-muted"
+                            };
+                            var statusText = normalizedStatus switch
+                            {
+                                "pending" => "Chờ xác nhận",
+                                "confirmed" => "Đã phê duyệt",
+                                "paid" => "Đã thanh toán",
+                                "cancelled" => "Đã hủy",
+                                _ => item.Status
+                            };
+                            <tr>
+                                <td><span class="tl-code">#@item.TournamentId</span></td>
+                                <td>
+                                    <span class="tl-name d-block">@item.TournamentName</span>
+                                    <span class="tl-description" title="@(item.Description ?? "Không có mô tả")">@(item.Description ?? "Không có mô tả")</span>
+                                </td>
+                                <td><span class="tl-date">@item.CreatedAt.ToString("dd/MM/yyyy")</span></td>
+                                <td><span class="tl-count"><i class="bi bi-calendar2-check"></i>@(item.Bookings?.Count ?? 0) ca</span></td>
+                                <td><span class="tl-amount">@item.TotalAmount.ToString("N0")đ</span></td>
+                                <td><span class="tl-status @statusClass">@statusText</span></td>
+                                <td class="text-end">
+                                    <a asp-action="MyDetail" asp-route-id="@item.TournamentId" class="sc-btn sc-btn-secondary tl-action">
+                                        <i class="bi bi-arrow-up-right-circle me-1"></i>Chi tiết
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="tl-empty">
+                                    <i class="bi bi-calendar2-x"></i>
+                                    <strong>Chưa có giải đấu phù hợp</strong>
+                                    <span>Hãy tạo lịch thi đấu đầu tiên hoặc thử thay đổi bộ lọc.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PagedData.TotalPages > 1)
+        {
+            <div class="tl-footer">
+                <span class="tl-page-info">Trang @Model.PagedData.PageNumber / @Model.PagedData.TotalPages</span>
+                <ul class="pagination tl-pagination">
+                    <li class="page-item @(Model.PagedData.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="MyTournaments" asp-route-page="@(Model.PagedData.PageNumber - 1)" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")" aria-label="Trang trước"><i class="bi bi-chevron-left"></i></a>
+                    </li>
+                    @for (var pageNumber = 1; pageNumber <= Model.PagedData.TotalPages; pageNumber++)
+                    {
+                        <li class="page-item @(pageNumber == Model.PagedData.PageNumber ? "active" : "")">
+                            <a class="page-link" asp-action="MyTournaments" asp-route-page="@pageNumber" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")">@pageNumber</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.PagedData.PageNumber >= Model.PagedData.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="MyTournaments" asp-route-page="@(Model.PagedData.PageNumber + 1)" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")" aria-label="Trang sau"><i class="bi bi-chevron-right"></i></a>
+                    </li>
+                </ul>
+            </div>
+        }
+    </section>
+</main>

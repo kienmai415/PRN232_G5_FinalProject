@@ -1,0 +1,744 @@
+@model SportCourtManagement_FrontEnd.Models.Manager.TaskViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản lý công việc | ProCourt";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Manager/tasks.css" asp-append-version="true" />
+}
+
+<div class="tasks-container">
+
+    <!-- Module Header -->
+    <div class="module-header">
+        <div class="module-title">
+            <h3>Quản lý công việc</h3>
+            <p>Phân công, giám sát và duyệt nghiệm thu các công việc vận hành tại cơ sở.</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                <span class="material-symbols-outlined">add</span>
+                Tạo công việc
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="summary-stats">
+        <div class="stat-card glass-panel">
+            <div class="stat-icon orange">
+                <span class="material-symbols-outlined">assignment_late</span>
+            </div>
+            <div class="stat-body">
+                <p class="stat-label">Chờ thực hiện</p>
+                <span class="stat-value orange">@Model.PendingCount</span>
+                <p class="stat-sub">Pending</p>
+            </div>
+        </div>
+        <div class="stat-card glass-panel">
+            <div class="stat-icon sky">
+                <span class="material-symbols-outlined">pending</span>
+            </div>
+            <div class="stat-body">
+                <p class="stat-label">Đang làm</p>
+                <span class="stat-value sky">@Model.InProgressCount</span>
+                <p class="stat-sub">In Progress</p>
+            </div>
+        </div>
+        <div class="stat-card glass-panel">
+            <div class="stat-icon emerald">
+                <span class="material-symbols-outlined">fact_check</span>
+            </div>
+            <div class="stat-body">
+                <p class="stat-label">Chờ nghiệm thu</p>
+                <span class="stat-value emerald">@Model.CompletedCount</span>
+                <p class="stat-sub">Completed</p>
+            </div>
+        </div>
+        <div class="stat-card glass-panel">
+            <div class="stat-icon gold">
+                <span class="material-symbols-outlined">task_alt</span>
+            </div>
+            <div class="stat-body">
+                <p class="stat-label">Đã duyệt</p>
+                <span class="stat-value gold">@Model.ApprovedCount</span>
+                <p class="stat-sub">Approved</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar-container">
+        <div class="toolbar-filters">
+            <div class="search-input-wrapper">
+                <span class="material-symbols-outlined">search</span>
+                <input type="text" id="searchInput" placeholder="Tìm theo tiêu đề, mô tả..." />
+            </div>
+            <div class="filter-box">
+                <span class="material-symbols-outlined">filter_list</span>
+                <select id="statusFilter">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Pending">Pending (Chờ làm)</option>
+                    <option value="InProgress">In Progress (Đang làm)</option>
+                    <option value="Completed">Completed (Chờ nghiệm thu)</option>
+                    <option value="Approved">Approved (Đã duyệt)</option>
+                </select>
+            </div>
+            <div class="filter-box">
+                <span class="material-symbols-outlined">sell</span>
+                <select id="categoryFilter">
+                    <option value="">Tất cả danh mục</option>
+                    <option value="Cleanup">Cleanup (Dọn dẹp)</option>
+                    <option value="ServicePrep">ServicePrep (Chuẩn bị dịch vụ)</option>
+                    <option value="Repair">Repair (Sửa chữa)</option>
+                    <option value="Complaint">Complaint (Khiếu nại)</option>
+                </select>
+            </div>
+            <div class="filter-box">
+                <span class="material-symbols-outlined">priority_high</span>
+                <select id="priorityFilter">
+                    <option value="">Tất cả độ ưu tiên</option>
+                    <option value="Urgent">Urgent (Khẩn cấp)</option>
+                    <option value="High">High (Cao)</option>
+                    <option value="Medium">Medium (Trung bình)</option>
+                    <option value="Low">Low (Thấp)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="table-panel glass-panel">
+        <table class="tasks-table">
+            <thead>
+                <tr>
+                    <th>Công việc</th>
+                    <th>Danh mục</th>
+                    <th>Độ ưu tiên</th>
+                    <th>Hạn hoàn thành</th>
+                    <th>Trạng thái</th>
+                    <th>Nhân viên thực hiện</th>
+                    <th>Nghiệm thu</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Tasks == null || Model.Tasks.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <div class="d-flex flex-column align-items-center gap-2">
+                                <span class="material-symbols-outlined fs-2">assignment_late</span>
+                                <span>Không tìm thấy công việc nào.</span>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var task in Model.Tasks.Items)
+                    {
+                        var staff = task.AssignedStaffId.HasValue 
+                            ? Model.Staffs.FirstOrDefault(s => s.UserId == task.AssignedStaffId.Value) 
+                            : null;
+                        var avatarUrl = staff?.AvatarUrl ?? "https://lh3.googleusercontent.com/aida-public/AB6AXuA2F8HPt7wWLUahORbOOsCiz40UDrnOOYBu__26_jVUEjwrjrAgGUyitMx1ElfkLnFw7H_X_C1H5paESWMxHEGj6ERwpj7sd0n1sQ_vCRplNAd5jI_axazv2IdmbHMZikI331-NPoXgcYUOxYbPGzahf0yMXscMGz5i-i5vo2JA-N4UBWneywYeEoeX3_MdHjEla0B6q0OPUkCLvneGc2q3hESdPF-e5C_Qvn9QQV-vmpinkZMntFn9wGtgSBx9Q8TEWRRfuxhjCkA";
+                        
+                        <tr data-id="@task.TaskId"
+                            data-title="@task.Title"
+                            data-description="@task.Description"
+                            data-category="@task.Category"
+                            data-priority="@task.Priority"
+                            data-duedate="@task.DueDate.ToString("yyyy-MM-ddTHH:mm")"
+                            data-status="@task.Status"
+                            data-staff-id="@task.AssignedStaffId"
+                            data-staff-name="@(task.AssignedStaffName ?? "")"
+                            data-image-proof="@(task.ImageProof ?? "")">
+                            <td>
+                                <div class="task-cell">
+                                    <div class="task-icon">
+                                        <span class="material-symbols-outlined">assignment</span>
+                                    </div>
+                                    <div>
+                                        <p class="task-title">@task.Title</p>
+                                        <p class="task-desc" title="@task.Description">@task.Description</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="category-badge @task.Category.ToLower()">@task.Category</span></td>
+                            <td><span class="priority-badge @task.Priority.ToLower()">@task.Priority</span></td>
+                            <td>
+                                <p class="due-date">@task.DueDate.ToString("dd/MM/yyyy HH:mm")</p>
+                            </td>
+                            <td>
+                                <span class="status-badge @(task.Status == "InProgress" ? "in-progress" : task.Status.ToLower())">@task.Status</span>
+                            </td>
+                            <td>
+                                @if (task.AssignedStaffId.HasValue)
+                                {
+                                    <div class="assigned-cell">
+                                        <div class="assigned-avatar">
+                                            <img alt="@task.AssignedStaffName" src="@avatarUrl" />
+                                        </div>
+                                        <span class="assigned-name">@task.AssignedStaffName</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted" style="font-size: 13px;">Chưa phân công</span>
+                                }
+                            </td>
+                            <td class="completed-cell">
+                                @if (task.CompletedAt.HasValue)
+                                {
+                                    <p class="completed-time">@task.CompletedAt.Value.ToString("dd/MM HH:mm")</p>
+                                }
+                                else
+                                {
+                                    <span>–</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="actions-cell">
+                                    <button class="action-icon-btn view-detail" title="Xem chi tiết">
+                                        <span class="material-symbols-outlined">visibility</span>
+                                    </button>
+                                    @if (task.Status != "Approved")
+                                    {
+                                        <button class="action-icon-btn verify" title="Duyệt / Từ chối">
+                                            <span class="material-symbols-outlined">how_to_reg</span>
+                                        </button>
+                                        <button class="action-icon-btn edit" title="Chỉnh sửa">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </button>
+                                        <button class="action-icon-btn delete" title="Xóa">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.Tasks?.TotalPages > 0)
+    {
+        var selectedStatus = ViewBag.SelectedStatus as string;
+        <div class="pagination-panel">
+            <p class="pagination-info">
+                Hiển thị trang @Model.Tasks.Page / @Model.Tasks.TotalPages (Tổng số @Model.Tasks.TotalCount công việc - 10 công việc / trang)
+            </p>
+            <div class="pagination-buttons">
+                @if (Model.Tasks.Page > 1)
+                {
+                    <a class="pagination-btn" href="/manager/tasks?status=@selectedStatus&page=@(Model.Tasks.Page - 1)">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </a>
+                }
+                else
+                {
+                    <button class="pagination-btn" disabled>
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                }
+
+                @for (int i = 1; i <= Model.Tasks.TotalPages; i++)
+                {
+                    <a class="pagination-btn @(i == Model.Tasks.Page ? "active" : "")" href="/manager/tasks?status=@selectedStatus&page=@i">@i</a>
+                }
+
+                @if (Model.Tasks.Page < Model.Tasks.TotalPages)
+                {
+                    <a class="pagination-btn" href="/manager/tasks?status=@selectedStatus&page=@(Model.Tasks.Page + 1)">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </a>
+                }
+                else
+                {
+                    <button class="pagination-btn" disabled>
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content tasks-modal-content">
+            <form asp-controller="Task" asp-action="CreateTask" method="post" id="createTaskForm">
+                <div class="modal-header tasks-modal-header">
+                    <h5 class="modal-title" id="createTaskLabel">
+                        <span class="material-symbols-outlined">assignment_ind</span>
+                        Tạo công việc mới
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-form-grid">
+                        <div class="form-group form-group-full">
+                            <label class="form-label-custom">Tiêu đề công việc</label>
+                            <input type="text" class="form-input-custom" name="Title" id="createTitle" placeholder="Nhập tiêu đề công việc..." required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Danh mục</label>
+                            <select class="form-input-custom" name="Category" id="createCategory" required>
+                                <option value="Cleanup">Cleanup – Dọn dẹp</option>
+                                <option value="ServicePrep">ServicePrep – Chuẩn bị dịch vụ</option>
+                                <option value="Repair">Repair – Sửa chữa</option>
+                                <option value="Complaint">Complaint – Phản hồi khiếu nại</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Độ ưu tiên</label>
+                            <select class="form-input-custom" name="Priority" id="createPriority" required>
+                                <option value="Urgent">Urgent – Khẩn cấp</option>
+                                <option value="High" selected>High – Cao</option>
+                                <option value="Medium">Medium – Trung bình</option>
+                                <option value="Low">Low – Thấp</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Nhân viên thực hiện</label>
+                            <select class="form-input-custom" name="AssignedStaffId" id="createAssignedStaffId" required>
+                                <option value="" disabled selected>-- Chọn nhân viên thực hiện --</option>
+                                @foreach (var staff in Model.Staffs)
+                                {
+                                    <option value="@staff.UserId">@staff.FullName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Hạn hoàn thành (Due Date)</label>
+                            <input type="datetime-local" class="form-input-custom" name="DueDate" id="createDueDate" required />
+                        </div>
+                        <div class="form-group form-group-full">
+                            <label class="form-label-custom">Mô tả công việc (Description)</label>
+                            <textarea class="form-input-custom" name="Description" id="createDescription" rows="3" maxlength="500" placeholder="Mô tả chi tiết công việc cần làm..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer tasks-modal-footer">
+                    <button type="button" class="btn-secondary-custom" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn-primary-custom">
+                        <span class="material-symbols-outlined">check</span>
+                        Tạo công việc
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content tasks-modal-content">
+            <form asp-controller="Task" asp-action="UpdateTask" method="post" id="editTaskForm">
+                <input type="hidden" name="TaskId" id="editTaskId" />
+                <div class="modal-header tasks-modal-header">
+                    <h5 class="modal-title" id="editTaskLabel">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        Chỉnh sửa công việc
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-form-grid">
+                        <div class="form-group form-group-full">
+                            <label class="form-label-custom">Tiêu đề công việc</label>
+                            <input type="text" class="form-input-custom" name="Title" id="editTitle" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Danh mục</label>
+                            <select class="form-input-custom" name="Category" id="editCategory" required>
+                                <option value="Cleanup">Cleanup – Dọn dẹp</option>
+                                <option value="ServicePrep">ServicePrep – Chuẩn bị dịch vụ</option>
+                                <option value="Repair">Repair – Sửa chữa</option>
+                                <option value="Complaint">Complaint – Phản hồi khiếu nại</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Độ ưu tiên</label>
+                            <select class="form-input-custom" name="Priority" id="editPriority" required>
+                                <option value="Urgent">Urgent – Khẩn cấp</option>
+                                <option value="High">High – Cao</option>
+                                <option value="Medium">Medium – Trung bình</option>
+                                <option value="Low">Low – Thấp</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Nhân viên thực hiện</label>
+                            <select class="form-input-custom" name="AssignedStaffId" id="editAssignedStaffId">
+                                <option value="">-- Chưa phân công --</option>
+                                @foreach (var staff in Model.Staffs)
+                                {
+                                    <option value="@staff.UserId">@staff.FullName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Hạn hoàn thành</label>
+                            <input type="datetime-local" class="form-input-custom" name="DueDate" id="editDueDate" required />
+                        </div>
+                        <div class="form-group form-group-full">
+                            <label class="form-label-custom">Mô tả công việc</label>
+                            <textarea class="form-input-custom" name="Description" id="editDescription" rows="3" maxlength="500"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer tasks-modal-footer">
+                    <button type="button" class="btn-secondary-custom" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn-primary-custom">
+                        <span class="material-symbols-outlined">save</span>
+                        Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Verify Task Modal -->
+<div class="modal fade" id="verifyTaskModal" tabindex="-1" aria-labelledby="verifyTaskLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tasks-modal-content">
+            <form asp-controller="Task" asp-action="VerifyTask" method="post" id="verifyTaskForm">
+                <input type="hidden" name="TaskId" id="verifyTaskId" />
+                <div class="modal-header tasks-modal-header">
+                    <h5 class="modal-title" id="verifyTaskLabel">
+                        <span class="material-symbols-outlined">how_to_reg</span>
+                        Duyệt nghiệm thu công việc
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label-custom">Mô tả / Báo cáo kết quả từ Staff</label>
+                            <div id="verifyTaskStaffDescDisplay" style="background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); font-size: 13.5px; color: #f8fafc; min-height: 42px;"></div>
+                        </div>
+                        <div class="form-group" id="verifyTaskImageProofContainer" style="display: none;">
+                            <label class="form-label-custom">Hình ảnh minh chứng hoàn thành (Image Proof)</label>
+                            <div style="background: #0f172a; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                                <img id="verifyTaskImageProofImg" src="" alt="Ảnh minh chứng" style="max-width: 100%; max-height: 240px; border-radius: 8px; object-fit: contain;" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Quyết định nghiệm thu</label>
+                            <div style="display: flex; gap: 20px; margin-top: 6px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; color: var(--on-surface);">
+                                    <input type="radio" name="IsApproved" value="true" checked style="accent-color: var(--primary);" />
+                                    <span class="material-symbols-outlined" style="color: var(--emerald-400); font-size: 18px;">check_circle</span>
+                                    Duyệt nghiệm thu (Approved)
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; color: var(--on-surface);">
+                                    <input type="radio" name="IsApproved" value="false" style="accent-color: var(--primary);" />
+                                    <span class="material-symbols-outlined" style="color: var(--rose-400); font-size: 18px;">cancel</span>
+                                    Từ chối (Cần chỉnh sửa)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-custom">Ghi chú nghiệm thu / Lý do từ chối (Note)</label>
+                            <textarea class="form-input-custom" name="Note" id="verifyNote" rows="3" maxlength="500" placeholder="Nhập ghi chú chi tiết kết quả nghiệm thu..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer tasks-modal-footer">
+                    <button type="button" class="btn-secondary-custom" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn-primary-custom">
+                        <span class="material-symbols-outlined">send</span>
+                        Gửi kết quả
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Task Modal -->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tasks-modal-content">
+            <form asp-controller="Task" asp-action="DeleteTask" method="post" id="deleteTaskForm">
+                <div class="modal-header tasks-modal-header" style="border-bottom: none; padding-bottom: 0;">
+                    <h5 class="modal-title" id="deleteTaskLabel" style="color: var(--rose-400);">
+                        <span class="material-symbols-outlined" style="color: var(--rose-400);">warning</span>
+                        Xác nhận xoá công việc
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding-top: 10px;">
+                    <p>Bạn có chắc chắn muốn xoá công việc <strong id="deleteTaskTitleDisplay"></strong>?</p>
+                    <input type="hidden" id="deleteTaskId" name="TaskId" />
+                </div>
+                <div class="modal-footer tasks-modal-footer" style="border-top: none; padding-top: 0;">
+                    <button type="button" class="btn-secondary-custom" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn-primary-custom" style="background-color: var(--rose-500); color: white;">
+                        <span class="material-symbols-outlined">delete</span>
+                        Xoá
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Task Detail Modal -->
+<div class="modal fade" id="viewTaskDetailModal" tabindex="-1" aria-labelledby="viewTaskDetailLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content tasks-modal-content">
+            <div class="modal-header tasks-modal-header">
+                <h5 class="modal-title" id="viewTaskDetailLabel">
+                    <span class="material-symbols-outlined">visibility</span>
+                    Chi tiết công việc
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-form-grid">
+                    <div class="form-group form-group-full">
+                        <label class="form-label-custom">Tiêu đề công việc</label>
+                        <input type="text" class="form-input-custom" id="viewTitle" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-custom">Danh mục</label>
+                        <input type="text" class="form-input-custom" id="viewCategory" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-custom">Độ ưu tiên</label>
+                        <input type="text" class="form-input-custom" id="viewPriority" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-custom">Nhân viên thực hiện</label>
+                        <input type="text" class="form-input-custom" id="viewStaffName" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-custom">Hạn hoàn thành</label>
+                        <input type="text" class="form-input-custom" id="viewDueDate" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-custom">Trạng thái</label>
+                        <input type="text" class="form-input-custom" id="viewStatus" readonly style="opacity: 0.8; background-color: var(--surface-container-low);" />
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label class="form-label-custom">Mô tả công việc</label>
+                        <textarea class="form-input-custom" id="viewDescription" rows="3" readonly style="opacity: 0.8; background-color: var(--surface-container-low);"></textarea>
+                    </div>
+                    <div class="form-group form-group-full" id="viewImageProofContainer" style="display: none;">
+                        <label class="form-label-custom">Hình ảnh minh chứng hoàn thành (Image Proof)</label>
+                        <div style="background: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                            <img id="viewImageProof" src="" alt="Ảnh minh chứng hoàn thành" style="max-width: 100%; max-height: 320px; border-radius: 8px; object-fit: contain;" />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="modal-footer tasks-modal-footer">
+                <button type="button" class="btn-secondary-custom" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            document.querySelectorAll('.toast-notification').forEach(t => t.remove());
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            const icon = type === 'error' ? 'error' : (type === 'info' ? 'info' : 'check_circle');
+            toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span><div>${message}</div>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <text>showToast('@Html.Raw(TempData["SuccessMessage"])', 'success');</text>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <text>showToast('@Html.Raw(TempData["ErrorMessage"])', 'error');</text>
+        }
+
+        // Search & Filter Logic
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const priorityFilter = document.getElementById('priorityFilter');
+        const tableRows = document.querySelectorAll('.tasks-table tbody tr');
+
+        function filterTable() {
+            const query = searchInput.value.toLowerCase().trim();
+            const status = statusFilter.value;
+            const category = categoryFilter.value;
+            const priority = priorityFilter.value;
+
+            tableRows.forEach(row => {
+                if (row.cells.length === 1 && row.cells[0].colSpan > 1) return; // Skip empty row
+
+                const title = row.dataset.title ? row.dataset.title.toLowerCase() : '';
+                const desc = row.dataset.description ? row.dataset.description.toLowerCase() : '';
+                const rowStatus = row.dataset.status || '';
+                const rowCategory = row.dataset.category || '';
+                const rowPriority = row.dataset.priority || '';
+
+                const matchesSearch = title.includes(query) || desc.includes(query);
+                const matchesStatus = !status || rowStatus === status;
+                const matchesCategory = !category || rowCategory === category;
+                const matchesPriority = !priority || rowPriority === priority;
+
+                if (matchesSearch && matchesStatus && matchesCategory && matchesPriority) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            updatePaginationInfo();
+        }
+
+        searchInput.addEventListener('input', filterTable);
+        statusFilter.addEventListener('change', filterTable);
+        categoryFilter.addEventListener('change', filterTable);
+        priorityFilter.addEventListener('change', filterTable);
+
+        function updatePaginationInfo() {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            const activeRows = document.querySelectorAll('.tasks-table tbody tr:not([style*="display: none"])');
+            const totalRows = document.querySelectorAll('.tasks-table tbody tr');
+
+            const isNoData = totalRows.length === 1 && totalRows[0].cells[0].colSpan > 1;
+            const activeCount = isNoData ? 0 : activeRows.length;
+            const totalCount = isNoData ? 0 : totalRows.length;
+
+            const pageInfo = document.querySelector('.pagination-info');
+            if (pageInfo) {
+                pageInfo.textContent = `Lọc kết quả: ${activeCount} / ${totalCount} công việc`;
+            }
+        }
+
+        // Event Delegation for row actions
+        document.querySelector('.tasks-table tbody').addEventListener('click', function(e) {
+            const btnEdit = e.target.closest('.action-icon-btn.edit');
+            const btnVerify = e.target.closest('.action-icon-btn.verify');
+            const btnDelete = e.target.closest('.action-icon-btn.delete');
+            const btnViewDetail = e.target.closest('.action-icon-btn.view-detail');
+            const row = e.target.closest('tr');
+
+            if (!row || (row.cells.length === 1 && row.cells[0].colSpan > 1)) return;
+
+            if (btnViewDetail) {
+                document.getElementById('viewTitle').value = row.dataset.title;
+                document.getElementById('viewCategory').value = row.dataset.category;
+                document.getElementById('viewPriority').value = row.dataset.priority;
+                
+                let dateStr = row.dataset.duedate;
+                if (dateStr) {
+                    const date = new Date(dateStr);
+                    dateStr = date.toLocaleString('vi-VN');
+                }
+                document.getElementById('viewDueDate').value = dateStr || '';
+                document.getElementById('viewStaffName').value = row.dataset.staffName || 'Chưa phân công';
+                document.getElementById('viewStatus').value = row.dataset.status;
+                document.getElementById('viewDescription').value = row.dataset.description;
+
+                const imgProof = row.dataset.imageProof;
+                const imgContainer = document.getElementById('viewImageProofContainer');
+                const imgElem = document.getElementById('viewImageProof');
+                if (imgProof && imgProof.trim() !== '' && imgProof !== 'null') {
+                    imgElem.src = imgProof;
+                    imgContainer.style.display = 'block';
+                } else {
+                    imgContainer.style.display = 'none';
+                    imgElem.src = '';
+                }
+
+
+                const viewModal = new bootstrap.Modal(document.getElementById('viewTaskDetailModal'));
+                viewModal.show();
+            }
+
+            if (btnEdit) {
+                document.getElementById('editTaskId').value = row.dataset.id;
+                document.getElementById('editTitle').value = row.dataset.title;
+                document.getElementById('editCategory').value = row.dataset.category;
+                document.getElementById('editPriority').value = row.dataset.priority;
+                document.getElementById('editDueDate').value = row.dataset.duedate;
+                document.getElementById('editAssignedStaffId').value = row.dataset.staffId || '';
+                document.getElementById('editDescription').value = row.dataset.description;
+
+                const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+                editModal.show();
+            }
+
+            if (btnVerify) {
+                document.getElementById('verifyTaskId').value = row.dataset.id;
+                document.getElementById('verifyNote').value = '';
+                document.querySelector('input[name="IsApproved"][value="true"]').checked = true;
+
+                document.getElementById('verifyTaskStaffDescDisplay').textContent = row.dataset.description || 'Chưa có mô tả';
+
+                const imgProof = row.dataset.imageProof;
+                const imgContainer = document.getElementById('verifyTaskImageProofContainer');
+                const imgElem = document.getElementById('verifyTaskImageProofImg');
+                if (imgProof && imgProof.trim() !== '' && imgProof !== 'null') {
+                    imgElem.src = imgProof;
+                    imgContainer.style.display = 'block';
+                } else {
+                    imgContainer.style.display = 'none';
+                    imgElem.src = '';
+                }
+
+                const verifyModal = new bootstrap.Modal(document.getElementById('verifyTaskModal'));
+                verifyModal.show();
+            }
+
+            if (btnDelete) {
+                document.getElementById('deleteTaskId').value = row.dataset.id;
+                document.getElementById('deleteTaskTitleDisplay').textContent = row.dataset.title;
+
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteTaskModal'));
+                deleteModal.show();
+            }
+        });
+
+        // Set dynamic min datetime for create task DueDate input
+        function updateMinDueDate() {
+            const now = new Date();
+            const tzOffset = now.getTimezoneOffset() * 60000;
+            const minTimeStr = new Date(now - tzOffset).toISOString().slice(0, 16);
+            const input = document.getElementById('createDueDate');
+            if (input) {
+                input.setAttribute('min', minTimeStr);
+            }
+        }
+        updateMinDueDate();
+        setInterval(updateMinDueDate, 60000);
+
+        // Form submit validation for Task DueDate
+        document.getElementById('createTaskForm').addEventListener('submit', function (e) {
+            const dueVal = document.getElementById('createDueDate').value;
+            if (dueVal) {
+                const dueDate = new Date(dueVal);
+                const now = new Date();
+                
+                if (dueDate.getTime() + 60000 <= now.getTime()) {
+                    e.preventDefault();
+                    showToast('Hạn hoàn thành phải ở trong tương lai.', 'error');
+                }
+            }
+        });
+    </script>
+}

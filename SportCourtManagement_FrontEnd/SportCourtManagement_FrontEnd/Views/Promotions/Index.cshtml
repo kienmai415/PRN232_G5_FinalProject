@@ -1,0 +1,161 @@
+@model SportCourtManagement_FrontEnd.Models.Promotions.PromotionListViewModel
+@{
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản lý Chương trình Khuyến mãi";
+    var activeFilterCount = (!string.IsNullOrWhiteSpace(Model.Keyword) ? 1 : 0) + (Model.IsActive.HasValue ? 1 : 0);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-filter.css" asp-append-version="true" />
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fa-solid fa-tags text-primary me-2"></i>Quản lý Khuyến mãi</h1>
+        <p class="page-subtitle">Quản lý các mã giảm giá và chiến dịch ưu đãi cho khách hàng</p>
+    </div>
+    @if (User.IsInRole("Admin"))
+    {
+        <a asp-action="Create" class="btn btn-primary fw-semibold shadow-sm">
+            <i class="fa-solid fa-plus me-1"></i> Tạo khuyến mãi mới
+        </a>
+    }
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-success border-success">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-danger border-danger">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section class="af-shell" aria-label="Bộ lọc khuyến mãi">
+    <div class="af-heading">
+        <div class="af-title-wrap">
+            <span class="af-title-icon"><i class="fa-solid fa-sliders"></i></span>
+            <div><h2 class="af-title">Tìm đúng chiến dịch</h2><p class="af-subtitle">Lọc nhanh theo mã, tên chương trình hoặc trạng thái phát hành</p></div>
+        </div>
+        <span class="af-state @(activeFilterCount > 0 ? "is-filtered" : "")">
+            <i class="fa-solid fa-circle"></i>@(activeFilterCount > 0 ? $"{activeFilterCount} bộ lọc đang áp dụng" : "Đang hiển thị tất cả")
+        </span>
+    </div>
+    <form method="get" asp-action="Index" class="af-form">
+        <div class="af-grid af-grid-single">
+            <div class="af-field">
+                <label class="af-label" for="promotionKeyword"><i class="fa-solid fa-magnifying-glass"></i>Từ khóa tìm kiếm</label>
+                <div class="af-control">
+                    <i class="fa-solid fa-ticket"></i>
+                    <input id="promotionKeyword" type="search" name="keyword" value="@Model.Keyword" class="form-control"
+                           placeholder="Nhập mã khuyến mãi hoặc tên chương trình..." autocomplete="off" />
+                </div>
+            </div>
+        </div>
+        <div class="af-bottom">
+            <div class="af-status-group">
+                <span class="af-status-caption">Trạng thái phát hành</span>
+                <div class="af-segments">
+                    <label class="af-segment af-muted"><input type="radio" name="isActive" value="" checked="@(!Model.IsActive.HasValue)" /><span>Tất cả</span></label>
+                    <label class="af-segment"><input type="radio" name="isActive" value="true" checked="@(Model.IsActive == true)" /><span>Đang kích hoạt</span></label>
+                    <label class="af-segment af-danger"><input type="radio" name="isActive" value="false" checked="@(Model.IsActive == false)" /><span>Đã khóa / hết hạn</span></label>
+                </div>
+            </div>
+            <div class="af-actions">
+                <a asp-action="Index" class="af-reset"><i class="fa-solid fa-arrow-rotate-left"></i>Đặt lại</a>
+                <button type="submit" class="af-submit"><i class="fa-solid fa-wand-magic-sparkles"></i>Áp dụng bộ lọc</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+@if (Model.PagedData.Items == null || !Model.PagedData.Items.Any())
+{
+    <div class="empty-state py-5 text-center">
+        <i class="fa-solid fa-gift fs-1 text-secondary d-block mb-3"></i>
+        <p class="text-secondary">Chưa có dữ liệu chương trình khuyến mãi nào.</p>
+    </div>
+}
+else
+{
+    <div class="admin-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Mã CODE</th>
+                    <th>Tên chương trình</th>
+                    <th>Mức giảm</th>
+                    <th>Đơn tối thiểu</th>
+                    <th>Thời gian áp dụng</th>
+                    <th>Đã dùng</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.PagedData.Items)
+                {
+                    <tr>
+                        <td>
+                            <span class="type-badge type-default fw-bold text-white fs-6">@item.PromoCode</span>
+                        </td>
+                        <td class="fw-semibold text-white">@item.PromoName</td>
+                        <td>
+                            <span class="text-success fw-bold">
+                                @(item.DiscountType == SportCourtManagement_FrontEnd.Models.Promotions.DiscountType.Percent ? $"{item.DiscountValue}%" : $"{item.DiscountValue:N0}đ")
+                            </span>
+                        </td>
+                        <td class="text-secondary">@item.MinOrderAmount.ToString("N0")đ</td>
+                        <td>
+                            <div class="small text-secondary">Từ: @item.StartDate.ToString("dd/MM/yyyy")</div>
+                            <div class="small text-secondary">Đến: @item.EndDate.ToString("dd/MM/yyyy")</div>
+                        </td>
+                        <td>
+                            <span class="type-badge">@item.UsedCount / @(item.UsageLimit?.ToString() ?? "∞")</span>
+                        </td>
+                        <td>
+                            @if (item.IsActive && item.EndDate >= DateTime.UtcNow)
+                            {
+                                <span class="status-badge status-available">Hoạt động</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-inactive">Ngừng hoạt động</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@item.PromotionId" class="btn-ghost me-1 text-primary" title="Sửa">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                <form asp-action="Delete" asp-route-id="@item.PromotionId" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa khuyến mãi này?');">
+                                    <button type="submit" class="btn-ghost text-danger" title="Xóa">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.PagedData.TotalPages > 1)
+    {
+        <div class="pagination-custom mt-4">
+            @for (int i = 1; i <= Model.PagedData.TotalPages; i++)
+            {
+                <a asp-action="Index" asp-route-page="@i" asp-route-keyword="@Model.Keyword" asp-route-isActive="@Model.IsActive" class="@(i == Model.PagedData.PageNumber ? "active" : "")">@i</a>
+            }
+        </div>
+    }
+}

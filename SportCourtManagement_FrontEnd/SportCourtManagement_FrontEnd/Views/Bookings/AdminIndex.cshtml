@@ -1,0 +1,363 @@
+@model SportCourtManagement_FrontEnd.Models.Bookings.BookingListViewModel
+@{
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản lý Đơn đặt sân";
+    var activeFilterCount = (!string.IsNullOrWhiteSpace(Model.Keyword) ? 1 : 0)
+        + (Model.CourtTypeId.HasValue ? 1 : 0)
+        + (Model.FromDate.HasValue ? 1 : 0) + (Model.ToDate.HasValue ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(Model.Status) ? 1 : 0);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-filter.css" asp-append-version="true" />
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fa-solid fa-calendar-check text-primary me-2"></i>Quản lý Đơn đặt sân</h1>
+        <p class="page-subtitle">Hệ thống quản lý toàn bộ giao dịch và lịch đặt sân của khách hàng</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-success border-success">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-danger border-danger">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section class="af-shell" aria-label="Bộ lọc đơn đặt sân">
+    <div class="af-heading">
+        <div class="af-title-wrap">
+            <span class="af-title-icon"><i class="fa-solid fa-sliders"></i></span>
+            <div><h2 class="af-title">Điều phối đơn đặt sân</h2><p class="af-subtitle">Tìm nhanh giao dịch theo khách hàng, loại sân, ngày chơi và tiến độ xử lý</p></div>
+        </div>
+        <span class="af-state @(activeFilterCount > 0 ? "is-filtered" : "")">
+            <i class="fa-solid fa-circle"></i>@(activeFilterCount > 0 ? $"{activeFilterCount} bộ lọc đang áp dụng" : "Đang hiển thị tất cả")
+        </span>
+    </div>
+    <form method="get" asp-action="AdminIndex" class="af-form">
+        <div class="af-grid af-grid-bookings">
+            <div class="af-field">
+                <label class="af-label" for="bookingKeyword"><i class="fa-solid fa-magnifying-glass"></i>Mã đơn / khách hàng</label>
+                <div class="af-control"><i class="fa-solid fa-receipt"></i><input id="bookingKeyword" type="search" name="keyword" value="@Model.Keyword" class="form-control" placeholder="Mã đơn, tên, số điện thoại hoặc sân..." /></div>
+            </div>
+            <div class="af-field">
+                <label class="af-label" for="bookingCourtType"><i class="fa-solid fa-layer-group"></i>Loại sân</label>
+                <div class="af-control">
+                    <i class="fa-solid fa-volleyball"></i>
+                    <select id="bookingCourtType" name="courtTypeId" class="form-select">
+                        <option value="">Tất cả loại sân</option>
+                        @if (ViewBag.CourtTypes != null)
+                        {
+                            foreach (var ct in ViewBag.CourtTypes)
+                            {
+                                <option value="@ct.CourtTypeId" selected="@(Model.CourtTypeId == ct.CourtTypeId)">@ct.TypeName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="af-field">
+                <label class="af-label" for="bookingFrom"><i class="fa-regular fa-calendar"></i>Ngày chơi từ</label>
+                <div class="af-control"><i class="fa-solid fa-calendar-day"></i><input id="bookingFrom" type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            </div>
+            <div class="af-field">
+                <label class="af-label" for="bookingTo"><i class="fa-regular fa-calendar-check"></i>Đến ngày</label>
+                <div class="af-control"><i class="fa-solid fa-calendar-check"></i><input id="bookingTo" type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            </div>
+        </div>
+        <div class="af-bottom">
+            <div class="af-status-group">
+                <span class="af-status-caption">Trạng thái đơn</span>
+                <div class="af-segments">
+                    <label class="af-segment af-muted"><input type="radio" name="status" value="" checked="@string.IsNullOrWhiteSpace(Model.Status)" /><span>Tất cả</span></label>
+                    <label class="af-segment af-warning"><input type="radio" name="status" value="Pending" checked="@(Model.Status == "Pending")" /><span>Chờ xử lý</span></label>
+                    <label class="af-segment af-info"><input type="radio" name="status" value="Confirmed" checked="@(Model.Status == "Confirmed")" /><span>Đã xác nhận</span></label>
+                    <label class="af-segment"><input type="radio" name="status" value="Completed" checked="@(Model.Status == "Completed")" /><span>Đã xong</span></label>
+                    <label class="af-segment af-danger"><input type="radio" name="status" value="Cancelled" checked="@(Model.Status == "Cancelled")" /><span>Đã hủy</span></label>
+                </div>
+            </div>
+            <div class="af-actions">
+                <a asp-action="AdminIndex" class="af-reset"><i class="fa-solid fa-arrow-rotate-left"></i>Đặt lại</a>
+                <button type="submit" class="af-submit"><i class="fa-solid fa-wand-magic-sparkles"></i>Áp dụng bộ lọc</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+@if (Model.PagedData.Items == null || !Model.PagedData.Items.Any())
+{
+    <div class="empty-state py-5 text-center">
+        <i class="fa-solid fa-calendar-xmark fs-1 text-secondary d-block mb-3"></i>
+        <p class="text-secondary">Không có đơn đặt sân nào phù hợp.</p>
+    </div>
+}
+else
+{
+    <div class="admin-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID / Mã CODE</th>
+                    <th>Khách hàng</th>
+                    <th>Sân / Khung giờ</th>
+                    <th>Ngày đặt</th>
+                    <th>Thành tiền</th>
+                    <th>Khuyến mãi</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Xử lý</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.PagedData.Items)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-white">#@item.BookingId</div>
+                            @if (item.BookingCode.StartsWith("RBK", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge bg-info text-dark mt-1" style="font-size: 11px;">
+                                    <i class="fa-solid fa-arrows-rotate me-1"></i>Định kỳ
+                                </span>
+                            }
+                            else if (item.BookingCode.StartsWith("TM-", StringComparison.OrdinalIgnoreCase) || item.BookingCode.StartsWith("TBK", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge bg-warning text-dark mt-1" style="font-size: 11px;">
+                                    <i class="fa-solid fa-trophy me-1"></i>Giải đấu
+                                </span>
+                            }
+                            else
+                            {
+                                <div class="type-badge type-default mt-1">@item.BookingCode</div>
+                            }
+                        </td>
+                        <td>
+                            <div class="fw-semibold" style="color: #60a5fa;">@item.CustomerName</div>
+                            <div class="small text-secondary">@item.CustomerPhone</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-white">@item.CourtName</div>
+                            <div class="small text-secondary">@item.SlotName</div>
+                        </td>
+                        <td class="text-white">@item.BookingDate.ToString("dd/MM/yyyy")</td>
+                        <td class="text-danger fw-bold fs-6">@item.TotalAmount.ToString("N0")đ</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.PromotionCode))
+                            {
+                                <span class="status-badge status-available" style="background-color: rgba(16,185,129,0.2); color: #10b981;">
+                                    @item.PromotionCode (-@item.DiscountAmount.ToString("N0")đ)
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td>
+                            @switch (item.Status)
+                            {
+                                case "Confirmed":
+                                    <span class="status-badge status-available">Đã xác nhận</span>
+                                    break;
+                                case "Paid":
+                                    <span class="status-badge status-available" style="background-color: rgba(16,185,129,0.2); color: #10b981;">Đã thanh toán</span>
+                                    break;
+                                case "Completed":
+                                    <span class="status-badge status-available" style="background-color: #3b82f6; color: white;">Đã xong</span>
+                                    break;
+                                case "Pending":
+                                    <span class="status-badge status-maintenance">Chờ xử lý</span>
+                                    break;
+                                case "Cancelled":
+                                    <span class="status-badge status-inactive">Đã hủy</span>
+                                    break;
+                                default:
+                                    <span class="type-badge type-default">@item.Status</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (item.Status == "Confirmed")
+                            {
+                                var servicesJson = System.Text.Json.JsonSerializer.Serialize(item.Services ?? new List<SportCourtManagement_FrontEnd.Models.Bookings.BookingServiceItemDto>());
+                                <button type="button" class="btn-ghost text-success me-1 btn-checkout" 
+                                        data-id="@item.BookingId" 
+                                        data-court="@item.CourtName"
+                                        data-slot="@item.SlotName"
+                                        data-subtotal="@item.SubTotal"
+                                        data-services='@servicesJson'
+                                        title="Trả sân (Check-out)">
+                                    <i class="fa-solid fa-right-from-bracket"></i>
+                                </button>
+                            }
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                            {
+                                @if (item.Status == "Pending")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline me-1">
+                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                        <input type="hidden" name="status" value="Confirmed" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("AdminIndex")" />
+                                        <button type="submit" class="btn-ghost text-success" title="Duyệt đơn">
+                                            <i class="fa-solid fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                @if (item.Status != "Cancelled")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline" onsubmit="return confirm('Xác nhận hủy đơn đặt sân này?');">
+                                        <input type="hidden" name="id" value="@item.BookingId" />
+                                        <input type="hidden" name="status" value="Cancelled" />
+                                        <input type="hidden" name="cancelReason" value="Quản trị viên hủy đơn" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("AdminIndex")" />
+                                        <button type="submit" class="btn-ghost text-danger" title="Hủy đơn">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.PagedData.TotalPages > 1)
+    {
+        int totalPages = Model.PagedData.TotalPages;
+        int currentPage = Model.PagedData.PageNumber;
+        int startPage = Math.Max(1, currentPage - 2);
+        int endPage = Math.Min(totalPages, currentPage + 2);
+
+        <div class="pagination-custom mt-4">
+            @if (startPage > 1)
+            {
+                <a asp-action="AdminIndex" asp-route-page="1" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status"
+                   asp-route-courtTypeId="@Model.CourtTypeId" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")">1</a>
+                @if (startPage > 2)
+                {
+                    <span class="text-secondary px-2">...</span>
+                }
+            }
+
+            @for (int i = startPage; i <= endPage; i++)
+            {
+                <a asp-action="AdminIndex" asp-route-page="@i" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status"
+                   asp-route-courtTypeId="@Model.CourtTypeId" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")" class="@(i == currentPage ? "active" : "")">@i</a>
+            }
+
+            @if (endPage < totalPages)
+            {
+                @if (endPage < totalPages - 1)
+                {
+                    <span class="text-secondary px-2">...</span>
+                }
+                <a asp-action="AdminIndex" asp-route-page="@totalPages" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status"
+                   asp-route-courtTypeId="@Model.CourtTypeId" asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")">@totalPages</a>
+            }
+        </div>
+    }
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('.btn-checkout').click(function() {
+                var btn = $(this);
+                var id = btn.data('id');
+                var court = btn.data('court');
+                var slot = btn.data('slot');
+                var subtotal = parseFloat(btn.data('subtotal')) || 0;
+                var services = btn.data('services') || [];
+
+                $('#checkoutBookingId').val(id);
+                $('#checkoutCourtInfo').text(court + ' | ' + slot);
+                $('#checkoutSubTotal').text(subtotal.toLocaleString('vi-VN') + 'đ');
+
+                var servicesList = $('#checkoutServicesList');
+                servicesList.empty();
+
+                if (services && services.length > 0) {
+                    var totalServices = 0;
+                    $.each(services, function(index, srv) {
+                        var total = parseFloat(srv.TotalPrice) || 0;
+                        totalServices += total;
+                        
+                        var liClass = "list-group-item d-flex justify-content-between align-items-center list-group-item-warning";
+                        var badgeClass = "badge bg-danger rounded-pill";
+                        var noteHtml = "<br/><small class='text-danger fw-bold'><i class='fa-solid fa-triangle-exclamation me-1'></i>(Nhắc nhở: Kiểm tra và thu hồi đồ dùng nếu có)</small>";
+                        
+                        var itemHtml = '<li class="' + liClass + '">' +
+                                       '<div>' + srv.ServiceName + ' x' + srv.Quantity + noteHtml + '</div>' +
+                                       '<span class="' + badgeClass + '">' + total.toLocaleString('vi-VN') + 'đ</span>' +
+                                       '</li>';
+                        servicesList.append(itemHtml);
+                    });
+                    
+                    var totalHtml = '<li class="list-group-item d-flex justify-content-between align-items-center fw-bold bg-dark text-white">' +
+                                    '<div>Tổng cộng</div>' +
+                                    '<span class="text-danger">' + (subtotal + totalServices).toLocaleString('vi-VN') + 'đ</span>' +
+                                    '</li>';
+                    servicesList.append(totalHtml);
+                } else {
+                    servicesList.append('<li class="list-group-item text-muted bg-dark">Không có dịch vụ phát sinh.</li>');
+                }
+
+                $('#checkoutModal').modal('show');
+            });
+        });
+    </script>
+}
+
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <form asp-action="UpdateStatus" method="post">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="checkoutModalLabel"><i class="fa-solid fa-right-from-bracket me-2 text-success"></i>Xác nhận trả sân</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="checkoutBookingId" />
+                    <input type="hidden" name="status" value="Completed" />
+                    <input type="hidden" name="returnUrl" value="@Url.Action("AdminIndex")" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Thông tin sân</label>
+                        <div class="fw-bold fs-5 text-info" id="checkoutCourtInfo"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Tiền sân</label>
+                        <div class="fw-bold text-success fs-5" id="checkoutSubTotal"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Dịch vụ sử dụng</label>
+                        <ul class="list-group list-group-flush" id="checkoutServicesList" style="border-radius: 8px; overflow: hidden; border: 1px solid #6c757d;">
+                            <!-- Items will be populated here -->
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-check me-2"></i>Hoàn tất trả sân</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
