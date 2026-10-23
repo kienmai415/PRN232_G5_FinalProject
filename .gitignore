@@ -42,5 +42,6 @@ Thumbs.db
 # Node / Python / Frontend
 **/node_modules/
 **/dist/
+!**/wwwroot/lib/**/dist/
 **/venv/
 **/__pycache__/

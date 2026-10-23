@@ -154,22 +154,42 @@ namespace SportCourtManagent_Server.DataAccess.Implementation
 
             if (!string.IsNullOrWhiteSpace(dto.PromoCode))
             {
-                var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.PromoCode == dto.PromoCode);
+                var cleanPromoCode = dto.PromoCode.Trim().ToUpper();
+                var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.PromoCode == cleanPromoCode);
 
                 if (promotion == null)
                 {
-                    throw new BadHttpRequestException($"Promotion code '{dto.PromoCode}' is invalid.");
+                    throw new BadHttpRequestException($"Mã khuyến mãi '{dto.PromoCode}' không hợp lệ.");
+                }
+
+                if (!promotion.IsActive)
+                {
+                    throw new BadHttpRequestException($"Mã khuyến mãi '{dto.PromoCode}' hiện đang tạm khóa.");
                 }
 
                 if (dto.BookingDate.Date < promotion.StartDate.Date || dto.BookingDate.Date > promotion.EndDate.Date)
                 {
-                    throw new BadHttpRequestException("This promotion code is expired or not yet active.");
+                    throw new BadHttpRequestException("Mã khuyến mãi này chưa đến ngày áp dụng hoặc đã hết hạn.");
+                }
+
+                if (promotion.UsageLimit.HasValue && promotion.UsedCount >= promotion.UsageLimit.Value)
+                {
+                    throw new BadHttpRequestException("Mã khuyến mãi này đã hết lượt sử dụng.");
+                }
+
+                if (subTotal < promotion.MinOrderAmount)
+                {
+                    throw new BadHttpRequestException($"Đơn hàng tối thiểu phải từ {promotion.MinOrderAmount:N0}đ để áp dụng mã này.");
                 }
 
                 appliedPromotion = promotion;
                 if (promotion.DiscountType == DiscountType.Percent)
                 {
-                    discountAmount = subTotal * (promotion.DiscountValue / 100);
+                    discountAmount = subTotal * (promotion.DiscountValue / 100m);
+                    if (promotion.MaxDiscount.HasValue && discountAmount > promotion.MaxDiscount.Value)
+                    {
+                        discountAmount = promotion.MaxDiscount.Value;
+                    }
                 }
                 else if (promotion.DiscountType == DiscountType.FixedAmount)
                 {
@@ -180,6 +200,8 @@ namespace SportCourtManagent_Server.DataAccess.Implementation
                 {
                     discountAmount = subTotal;
                 }
+
+                promotion.UsedCount += 1;
             }
 
             decimal totalAmount = subTotal - discountAmount;

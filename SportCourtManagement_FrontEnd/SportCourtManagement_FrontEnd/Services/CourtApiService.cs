@@ -752,12 +752,23 @@ public class CourtApiService : ICourtApiService
                 );
                 return body?.Data;
             }
+            else
+            {
+                var errContent = await res.Content.ReadAsStringAsync();
+                _logger.LogError("CreatePromotionAsync failed with {StatusCode}: {Error}", res.StatusCode, errContent);
+                string message = ExtractErrorMessage(errContent) ?? $"Tạo khuyến mãi thất bại (HTTP {(int)res.StatusCode}).";
+                throw new InvalidOperationException(message);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error CreatePromotionAsync");
+            throw new InvalidOperationException("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.", ex);
         }
-        return null;
     }
 
     public async Task<PromotionDto?> UpdatePromotionAsync(int id, PromotionFormDto form)
@@ -774,11 +785,91 @@ public class CourtApiService : ICourtApiService
                 );
                 return body?.Data;
             }
+            else
+            {
+                var errContent = await res.Content.ReadAsStringAsync();
+                _logger.LogError("UpdatePromotionAsync failed with {StatusCode}: {Error}", res.StatusCode, errContent);
+                string message = ExtractErrorMessage(errContent) ?? $"Cập nhật khuyến mãi thất bại (HTTP {(int)res.StatusCode}).";
+                throw new InvalidOperationException(message);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error UpdatePromotionAsync for id {Id}", id);
+            throw new InvalidOperationException("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.", ex);
         }
+    }
+
+    public async Task<ValidateCouponResultDto> ValidateCouponAsync(string promoCode, decimal orderAmount)
+    {
+        try
+        {
+            var req = CreateAuthRequest(HttpMethod.Post, "api/promotions/validate");
+            var payload = new
+            {
+                PromoCode = promoCode?.Trim().ToUpper() ?? string.Empty,
+                OrderAmount = orderAmount
+            };
+            req.Content = JsonContent.Create(payload, null, _jsonOptions);
+            var res = await _httpClient.SendAsync(req);
+            if (res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadFromJsonAsync<ApiResponse<ValidateCouponResultDto>>(_jsonOptions);
+                if (body?.Data != null)
+                {
+                    return body.Data;
+                }
+            }
+            else
+            {
+                var errContent = await res.Content.ReadAsStringAsync();
+                _logger.LogError("ValidateCouponAsync error {StatusCode}: {Error}", res.StatusCode, errContent);
+                var msg = ExtractErrorMessage(errContent);
+                return new ValidateCouponResultDto
+                {
+                    Valid = false,
+                    Message = msg ?? "Mã giảm giá không hợp lệ."
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ValidateCouponAsync");
+        }
+
+        return new ValidateCouponResultDto
+        {
+            Valid = false,
+            Message = "Không thể kiểm tra mã giảm giá vào lúc này."
+        };
+    }
+
+    private static string? ExtractErrorMessage(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("message", out var m) && m.ValueKind == System.Text.Json.JsonValueKind.String)
+                return m.GetString();
+            if (doc.RootElement.TryGetProperty("Message", out var m2) && m2.ValueKind == System.Text.Json.JsonValueKind.String)
+                return m2.GetString();
+            if (doc.RootElement.TryGetProperty("title", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.String)
+                return t.GetString();
+            if (doc.RootElement.TryGetProperty("errors", out var errs) && errs.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                foreach (var prop in errs.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array && prop.Value.GetArrayLength() > 0)
+                        return prop.Value[0].GetString();
+                }
+            }
+        }
+        catch { }
         return null;
     }
 

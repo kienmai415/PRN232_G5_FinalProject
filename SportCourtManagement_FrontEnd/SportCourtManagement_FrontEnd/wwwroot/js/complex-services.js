@@ -18,6 +18,7 @@
     const confirmDelBtn  = document.getElementById('confirmDeleteBtn');
 
     if (!modalEl || !modalBody) return;
+    if (typeof bootstrap === 'undefined') return;
 
     const modal       = bootstrap.Modal.getOrCreateInstance(modalEl);
     const delModal    = delConfirmEl ? bootstrap.Modal.getOrCreateInstance(delConfirmEl) : null;

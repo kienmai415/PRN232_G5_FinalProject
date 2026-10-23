@@ -5,6 +5,7 @@
     const toggleForm = document.getElementById('userToggleStatusForm');
 
     if (!modalEl || !modalBody) return;
+    if (typeof bootstrap === 'undefined') return;
 
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     const baseUrl = '/Admin/Users';
