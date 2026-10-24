@@ -11,6 +11,7 @@ using SportCourtManagent_Server.Models;
 using SportCourtManagent_Server.Services.Interfaces;
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 
@@ -24,12 +25,18 @@ namespace SportCourtManagent_Server.Services.Implements
         private readonly ICourtComplexRepository _complexRepo;
         private readonly IUserRepository _userRepo;
         private readonly IConfiguration _config;
+        private readonly AppDbContext _context;
 
-        public CourtComplexService(ICourtComplexRepository complexRepo, IUserRepository userRepo, IConfiguration config)
+        public CourtComplexService(
+            ICourtComplexRepository complexRepo, 
+            IUserRepository userRepo, 
+            IConfiguration config,
+            AppDbContext context)
         {
             _complexRepo = complexRepo ?? throw new ArgumentNullException(nameof(complexRepo));
             _userRepo = userRepo ?? throw new ArgumentNullException(nameof(userRepo));
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         public async Task<PagedComplexResult> GetAllAsync(string? search, int? courtTypeId, int page, int pageSize)
@@ -92,8 +99,8 @@ namespace SportCourtManagent_Server.Services.Implements
             var manager = await _userRepo.GetByIdWithDetailsAsync(request.ManagerId);
             if (manager == null || !manager.IsActive)
                 throw new InvalidOperationException("Quản lý không tồn tại hoặc đã bị vô hiệu hóa.");
-            if (!manager.UserRoles.Any(ur => ur.Role.RoleName == "Staff"))
-                throw new InvalidOperationException("Người được chọn phải có vai trò Staff.");
+            if (!manager.UserRoles.Any(ur => ur.Role.RoleName == "Manager" || ur.Role.RoleName == "Admin"))
+                throw new InvalidOperationException("Người được chọn phải có vai trò Manager.");
 
             var complex = new CourtComplex
             {
@@ -105,7 +112,14 @@ namespace SportCourtManagent_Server.Services.Implements
             };
 
             await _complexRepo.AddAsync(complex);
-            return MapToDto(complex);
+
+            if (request.CourtTypeIds != null && request.CourtTypeIds.Any())
+            {
+                await CreateDefaultCourtsForComplexAsync(complex.ComplexId, request.CourtTypeIds);
+            }
+
+            var result = await _complexRepo.GetByIdWithDetailsAsync(complex.ComplexId);
+            return MapToDto(result ?? complex);
         }
 
         public async Task<CourtComplexDto?> UpdateAsync(int id, UpsertCourtComplexRequest request)
@@ -118,8 +132,8 @@ namespace SportCourtManagent_Server.Services.Implements
             var manager = await _userRepo.GetByIdWithDetailsAsync(request.ManagerId);
             if (manager == null || !manager.IsActive)
                 throw new InvalidOperationException("Quản lý không tồn tại hoặc đã bị vô hiệu hóa.");
-            if (!manager.UserRoles.Any(ur => ur.Role.RoleName == "Staff"))
-                throw new InvalidOperationException("Người được chọn phải có vai trò Staff.");
+            if (!manager.UserRoles.Any(ur => ur.Role.RoleName == "Manager" || ur.Role.RoleName == "Admin"))
+                throw new InvalidOperationException("Người được chọn phải có vai trò Manager.");
 
             complex.ComplexName = request.ComplexName.Trim();
             complex.Address = request.Address.Trim();
@@ -129,7 +143,113 @@ namespace SportCourtManagent_Server.Services.Implements
             complex.Manager = manager;
 
             await _complexRepo.UpdateAsync(complex);
-            return MapToDto(complex);
+
+            if (request.CourtTypeIds != null && request.CourtTypeIds.Any())
+            {
+                var existingTypeIds = complex.Courts
+                    .Where(c => !c.IsDeleted)
+                    .Select(c => c.CourtTypeId)
+                    .Distinct()
+                    .ToList();
+
+                var missingTypeIds = request.CourtTypeIds.Except(existingTypeIds).ToList();
+                if (missingTypeIds.Any())
+                {
+                    await CreateDefaultCourtsForComplexAsync(complex.ComplexId, missingTypeIds);
+                }
+            }
+
+            var updated = await _complexRepo.GetByIdWithDetailsAsync(id);
+            return MapToDto(updated ?? complex);
+        }
+
+        private async Task CreateDefaultCourtsForComplexAsync(int complexId, IEnumerable<int> courtTypeIds)
+        {
+            var timeSlots = await _context.TimeSlots.ToListAsync();
+            var distinctTypeIds = courtTypeIds.Distinct().ToList();
+
+            foreach (var typeId in distinctTypeIds)
+            {
+                var courtType = await _context.CourtTypes.FindAsync(typeId);
+                if (courtType == null) continue;
+
+                var exists = await _context.Courts.AnyAsync(c => c.ComplexId == complexId && c.CourtTypeId == typeId && !c.IsDeleted);
+                if (exists) continue;
+
+                string prefix = "SAN";
+                string size = "Tiêu chuẩn";
+                decimal price = 120000m;
+                var tName = courtType.TypeName.ToLower();
+
+                if (tName.Contains("cầu lông"))
+                {
+                    prefix = "CL";
+                    size = "13.4m x 6.1m";
+                    price = 120000m;
+                }
+                else if (tName.Contains("bóng rổ"))
+                {
+                    prefix = "BR";
+                    size = "28m x 15m";
+                    price = 200000m;
+                }
+                else if (tName.Contains("bóng đá"))
+                {
+                    prefix = "BD";
+                    size = "40m x 20m";
+                    price = 300000m;
+                }
+                else if (tName.Contains("pickleball"))
+                {
+                    prefix = "PK";
+                    size = "13.4m x 6.1m";
+                    price = 150000m;
+                }
+                else if (tName.Contains("tennis"))
+                {
+                    prefix = "TN";
+                    size = "23.77m x 10.97m";
+                    price = 180000m;
+                }
+
+                var code = $"{prefix}-C{complexId}-01";
+                int counter = 1;
+                while (await _context.Courts.AnyAsync(c => c.CourtCode == code))
+                {
+                    counter++;
+                    code = $"{prefix}-C{complexId}-{counter:D2}";
+                }
+
+                var court = new Court
+                {
+                    CourtName = $"Sân {courtType.TypeName} 1",
+                    CourtCode = code,
+                    CourtTypeId = courtType.CourtTypeId,
+                    ComplexId = complexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = price,
+                    CourtSize = size
+                };
+
+                _context.Courts.Add(court);
+                await _context.SaveChangesAsync();
+
+                if (timeSlots.Any())
+                {
+                    var pricings = timeSlots.Select(ts => new CourtPricing
+                    {
+                        CourtId = court.CourtId,
+                        SlotId = ts.SlotId,
+                        Price = price,
+                        EffectiveFrom = DateTime.Today
+                    }).ToList();
+
+                    _context.CourtPricings.AddRange(pricings);
+                    await _context.SaveChangesAsync();
+                }
+            }
         }
 
         public async Task<bool> DeleteAsync(int id)

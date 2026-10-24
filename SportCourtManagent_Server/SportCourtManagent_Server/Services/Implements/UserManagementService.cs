@@ -49,11 +49,16 @@ namespace SportCourtManagent_Server.Services.Implements
 
         public async Task<List<UserDto>> GetManagersAsync()
         {
-            // Lấy tất cả user có vai trò Staff hoặc Manager đang active, không phân trang
-            var staffUsers = await _userRepo.GetPagedWithDetailsAsync(null, "Staff", true, 1, 200);
+            // Chỉ lấy các user có vai trò Manager đang active
             var managerUsers = await _userRepo.GetPagedWithDetailsAsync(null, "Manager", true, 1, 200);
 
-            var all = staffUsers.Concat(managerUsers)
+            // Fallback an toàn nếu chưa có tài khoản Manager nào được cấu hình
+            if (!managerUsers.Any())
+            {
+                managerUsers = await _userRepo.GetPagedWithDetailsAsync(null, "Staff", true, 1, 200);
+            }
+
+            var all = managerUsers
                 .GroupBy(u => u.UserId)
                 .Select(g => g.First())
                 .ToList();

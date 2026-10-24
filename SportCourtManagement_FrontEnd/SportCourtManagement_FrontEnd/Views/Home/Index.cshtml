@@ -135,6 +135,7 @@
                             <option value="2">Bóng đá</option>
                             <option value="3">Pickleball</option>
                             <option value="4">Tennis</option>
+                            <option value="5">Bóng rổ</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -587,12 +588,16 @@
             // Load Court Types for Quick Search Dropdown
             function loadQuickSearchCourtTypes() {
                 $.getJSON('/Courts/GetCourtTypesJson', function(types) {
-                    const select = $('#home-court-type-select');
-                    select.empty();
-                    select.append('<option value="">Tất cả loại sân</option>');
-                    types.forEach(function(type) {
-                        select.append(`<option value="${type.courtTypeId}">${type.typeName}</option>`);
-                    });
+                    if (types && types.length > 0) {
+                        const select = $('#home-court-type-select');
+                        select.empty();
+                        select.append('<option value="">Tất cả loại sân</option>');
+                        types.forEach(function(type) {
+                            const typeId = type.courtTypeId !== undefined ? type.courtTypeId : type.CourtTypeId;
+                            const typeName = type.typeName !== undefined ? type.typeName : type.TypeName;
+                            select.append(`<option value="${typeId}">${typeName}</option>`);
+                        });
+                    }
                 }).fail(function() {
                     console.warn("Failed to load dynamic court types for homepage quick search, using fallback.");
                 });

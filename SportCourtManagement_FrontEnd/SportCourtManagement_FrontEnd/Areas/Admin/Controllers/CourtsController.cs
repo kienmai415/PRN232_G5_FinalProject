@@ -409,6 +409,18 @@ public class CourtsController(ICourtService courtService) : Controller
                 pattern = @"^BA\d{4}$";
                 example = "BA0001";
             }
+            else if (typeName.Contains("tennis"))
+            {
+                requiredPrefix = "TN";
+                pattern = @"^TN\d{4}$";
+                example = "TN0001";
+            }
+            else if (typeName.Contains("bóng rổ") || typeName.Contains("basketball"))
+            {
+                requiredPrefix = "BR";
+                pattern = @"^(BR|BK)\d{4}$";
+                example = "BR0001";
+            }
             else
             {
                 requiredPrefix = "2 chữ cái viết hoa";

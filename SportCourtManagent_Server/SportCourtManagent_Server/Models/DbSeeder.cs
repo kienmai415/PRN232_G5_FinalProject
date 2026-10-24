@@ -12,18 +12,22 @@ namespace SportCourtManagent_Server.Models
         public static async Task SeedAsync(AppDbContext context)
         {
             // 1. Seed Roles
-            if (!await context.Roles.AnyAsync())
+            var requiredRoles = new[]
             {
-                var roles = new[]
+                new Role { RoleName = "Admin", Description = "Quản trị toàn bộ hệ thống" },
+                new Role { RoleName = "Manager", Description = "Quản lý tổ hợp sân" },
+                new Role { RoleName = "Staff", Description = "Nhân viên hỗ trợ vận hành" },
+                new Role { RoleName = "Coach", Description = "Huấn luyện viên thể thao" },
+                new Role { RoleName = "Customer", Description = "Khách hàng đặt sân" },
+            };
+            foreach (var r in requiredRoles)
+            {
+                if (!await context.Roles.AnyAsync(x => x.RoleName == r.RoleName))
                 {
-                    new Role { RoleName = "Admin", Description = "Quản trị toàn bộ hệ thống" },
-                    new Role { RoleName = "Staff", Description = "Nhân viên hỗ trợ vận hành" },
-                    new Role { RoleName = "Coach", Description = "Huấn luyện viên thể thao" },
-                    new Role { RoleName = "Customer", Description = "Khách hàng đặt sân" },
-                };
-                await context.Roles.AddRangeAsync(roles);
-                await context.SaveChangesAsync();
+                    await context.Roles.AddAsync(r);
+                }
             }
+            await context.SaveChangesAsync();
 
             // 2. Seed Membership Tiers
             if (!await context.MembershipTiers.AnyAsync())
@@ -153,18 +157,29 @@ namespace SportCourtManagent_Server.Models
             await EnsureCoreAccountsAsync(context);
             await EnsureDemoUsersAsync(context);
 
-            // 5. Seed Court Types
-            if (!await context.CourtTypes.AnyAsync())
+            // 5. Seed Court Types (Ensure all 5 standard court types exist)
+            var standardCourtTypes = new[]
             {
-                var types = new[]
+                "Cầu lông",
+                "Bóng đá",
+                "Pickleball",
+                "Tennis",
+                "Bóng rổ"
+            };
+
+            foreach (var typeName in standardCourtTypes)
+            {
+                var existing = await context.CourtTypes.FirstOrDefaultAsync(t => t.TypeName.ToLower() == typeName.ToLower());
+                if (existing == null)
                 {
-                    new CourtType { TypeName = "Cầu lông", IsActive = true },
-                    new CourtType { TypeName = "Pickleball", IsActive = true },
-                    new CourtType { TypeName = "Bóng đá", IsActive = true },
-                };
-                await context.CourtTypes.AddRangeAsync(types);
-                await context.SaveChangesAsync();
+                    context.CourtTypes.Add(new CourtType { TypeName = typeName, IsActive = true });
+                }
+                else if (!existing.IsActive)
+                {
+                    existing.IsActive = true;
+                }
             }
+            await context.SaveChangesAsync();
 
             // 6. Seed Court Complex + Courts
             var complex = await context.CourtComplexes.FirstOrDefaultAsync();
@@ -190,45 +205,9 @@ namespace SportCourtManagent_Server.Models
                 }
             }
 
-            if (complex != null && !await context.Courts.AnyAsync())
+            if (complex != null)
             {
-                var badminton = await context.CourtTypes.FirstOrDefaultAsync(t => t.TypeName == "Cầu lông")
-                    ?? await context.CourtTypes.FirstOrDefaultAsync();
-                var pickleball = await context.CourtTypes.FirstOrDefaultAsync(t => t.TypeName == "Pickleball")
-                    ?? await context.CourtTypes.FirstOrDefaultAsync();
-
-                if (badminton != null && pickleball != null)
-                {
-                    var courts = new[]
-                    {
-                        new Court
-                        {
-                            CourtName = "Sân Cầu Lông A1",
-                            CourtCode = "CL-A1",
-                            CourtTypeId = badminton.CourtTypeId,
-                            ComplexId = complex.ComplexId,
-                            Status = CourtStatus.Available,
-                            OpenTime = new TimeSpan(6, 0, 0),
-                            CloseTime = new TimeSpan(22, 0, 0),
-                            PricePerHour = 120000m,
-                            CourtSize = "13.4m x 6.1m"
-                        },
-                        new Court
-                        {
-                            CourtName = "Sân Pickleball P1",
-                            CourtCode = "PK-P1",
-                            CourtTypeId = pickleball.CourtTypeId,
-                            ComplexId = complex.ComplexId,
-                            Status = CourtStatus.Available,
-                            OpenTime = new TimeSpan(6, 0, 0),
-                            CloseTime = new TimeSpan(23, 0, 0),
-                            PricePerHour = 150000m,
-                            CourtSize = "13.4m x 6.1m"
-                        }
-                    };
-                    await context.Courts.AddRangeAsync(courts);
-                    await context.SaveChangesAsync();
-                }
+                await EnsureStandardCourtsExistAsync(context, complex);
             }
 
             // 7. Seed complex court type service offerings
@@ -450,6 +429,7 @@ namespace SportCourtManagent_Server.Models
 
             var roles = await context.Roles.ToListAsync();
             var adminRole = roles.FirstOrDefault(r => r.RoleName == "Admin");
+            var managerRole = roles.FirstOrDefault(r => r.RoleName == "Manager");
             var staffRole = roles.FirstOrDefault(r => r.RoleName == "Staff");
             var coachRole = roles.FirstOrDefault(r => r.RoleName == "Coach");
             var customerRole = roles.FirstOrDefault(r => r.RoleName == "Customer");
@@ -460,14 +440,16 @@ namespace SportCourtManagent_Server.Models
                 // ── Admin accounts ──────────────────────────────────────────
                 ("admin2@sportcourt.vn", "Phạm Văn Admin", "admin123", "Admin", gold?.TierId ?? bronze.TierId, true, "0902000001"),
 
-                // ── Staff / Quản lý tổ hợp ──────────────────────────────────
+                // ── Manager accounts ─────────────────────────────────────────
+                ("manager@sportcourt.vn",  "Trần Văn Quản Lý",     "Staff@123", "Manager", silver?.TierId ?? bronze.TierId, true, "0912111222"),
+                ("manager2@sportcourt.vn", "Nguyễn Thị Hồng",      "Staff@123", "Manager", silver?.TierId ?? bronze.TierId, true, "0912222333"),
+                ("manager3@sportcourt.vn", "Lê Quốc Hùng",         "Staff@123", "Manager", silver?.TierId ?? bronze.TierId, true, "0912333444"),
+                ("manager4@sportcourt.vn", "Võ Thị Thanh",         "Staff@123", "Manager", bronze.TierId,              true, "0912444555"),
+                ("manager5@sportcourt.vn", "Đặng Minh Khoa",       "Staff@123", "Manager", bronze.TierId,              true, "0912555666"),
+                ("manager6@sportcourt.vn", "Bùi Thị Thu Hà",       "Staff@123", "Manager", silver?.TierId ?? bronze.TierId, true, "0912666777"),
+
+                // ── Staff accounts ──────────────────────────────────────────
                 ("staff2@sportcourt.vn",   "Hoàng Thị Nhân Viên",  "Staff@123", "Staff", bronze.TierId,              true, "0902000002"),
-                ("manager@sportcourt.vn",  "Trần Văn Quản Lý",     "Staff@123", "Staff", silver?.TierId ?? bronze.TierId, true, "0912111222"),
-                ("manager2@sportcourt.vn", "Nguyễn Thị Hồng",      "Staff@123", "Staff", silver?.TierId ?? bronze.TierId, true, "0912222333"),
-                ("manager3@sportcourt.vn", "Lê Quốc Hùng",         "Staff@123", "Staff", silver?.TierId ?? bronze.TierId, true, "0912333444"),
-                ("manager4@sportcourt.vn", "Võ Thị Thanh",         "Staff@123", "Staff", bronze.TierId,              true, "0912444555"),
-                ("manager5@sportcourt.vn", "Đặng Minh Khoa",       "Staff@123", "Staff", bronze.TierId,              true, "0912555666"),
-                ("manager6@sportcourt.vn", "Bùi Thị Thu Hà",       "Staff@123", "Staff", silver?.TierId ?? bronze.TierId, true, "0912666777"),
 
                 // ── Customer accounts ────────────────────────────────────────
                 ("customer2@sportcourt.vn",        "Lê Thị Lan",       "customer123", "Customer", silver?.TierId ?? bronze.TierId, true,  "0903000001"),
@@ -477,36 +459,51 @@ namespace SportCourtManagent_Server.Models
 
             foreach (var demo in demos)
             {
-                if (await context.Users.AnyAsync(u => u.Email == demo.Email))
-                    continue;
-
-                var user = new User
-                {
-                    FullName = demo.FullName,
-                    Email = demo.Email,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(demo.Password),
-                    Phone = demo.Phone,
-                    AvatarUrl = $"https://api.dicebear.com/8.x/avataaars/svg?seed={Uri.EscapeDataString(demo.Email)}",
-                    LoyaltyPoints = demo.Role == "Customer" ? 200 : 100,
-                    MembershipTierId = demo.TierId,
-                    Gender = Gender.Other,
-                    SkillLevel = SkillLevel.Beginner,
-                    IsActive = demo.IsActive,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await context.Users.AddAsync(user);
-                await context.SaveChangesAsync();
-
-                var role = demo.Role switch
+                var targetRole = demo.Role switch
                 {
                     "Admin" => adminRole,
+                    "Manager" => managerRole ?? staffRole,
                     "Staff" => staffRole,
                     "Coach" => coachRole ?? staffRole,
                     _ => customerRole
                 };
 
-                await context.UserRoles.AddAsync(new UserRole { UserId = user.UserId, RoleId = role.RoleId });
-                await context.SaveChangesAsync();
+                var user = await context.Users
+                    .Include(u => u.UserRoles)
+                    .FirstOrDefaultAsync(u => u.Email == demo.Email);
+
+                if (user == null)
+                {
+                    user = new User
+                    {
+                        FullName = demo.FullName,
+                        Email = demo.Email,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(demo.Password),
+                        Phone = demo.Phone,
+                        AvatarUrl = $"https://api.dicebear.com/8.x/avataaars/svg?seed={Uri.EscapeDataString(demo.Email)}",
+                        LoyaltyPoints = demo.Role == "Customer" ? 200 : 100,
+                        MembershipTierId = demo.TierId,
+                        Gender = Gender.Other,
+                        SkillLevel = SkillLevel.Beginner,
+                        IsActive = demo.IsActive,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await context.Users.AddAsync(user);
+                    await context.SaveChangesAsync();
+
+                    await context.UserRoles.AddAsync(new UserRole { UserId = user.UserId, RoleId = targetRole.RoleId });
+                    await context.SaveChangesAsync();
+                }
+                else
+                {
+                    // Ensure role is up-to-date (e.g. migrate manager accounts to Manager role)
+                    if (targetRole != null && !user.UserRoles.Any(ur => ur.RoleId == targetRole.RoleId))
+                    {
+                        context.UserRoles.RemoveRange(user.UserRoles);
+                        context.UserRoles.Add(new UserRole { UserId = user.UserId, RoleId = targetRole.RoleId });
+                        await context.SaveChangesAsync();
+                    }
+                }
             }
 
             if (!await context.Users.AnyAsync(u => u.Email == "coach@sportcourt.vn") && coachRole != null)
@@ -536,6 +533,195 @@ namespace SportCourtManagent_Server.Models
             {
                 complex.ManagerId = manager.UserId;
                 await context.SaveChangesAsync();
+            }
+
+            // Assign staff members to complex 1 so manager can schedule shifts
+            if (complex != null)
+            {
+                var staffEmails = new[] { "staff@sportcourt.vn", "staff2@sportcourt.vn" };
+                var staffUsers = await context.Users
+                    .Where(u => staffEmails.Contains(u.Email))
+                    .ToListAsync();
+
+                foreach (var s in staffUsers)
+                {
+                    if (!await context.StaffComplexes.AnyAsync(sc => sc.StaffId == s.UserId && sc.ComplexId == complex.ComplexId))
+                    {
+                        context.StaffComplexes.Add(new StaffComplex
+                        {
+                            StaffId = s.UserId,
+                            ComplexId = complex.ComplexId,
+                            AssignedAt = DateTime.Now
+                        });
+                    }
+                }
+                await context.SaveChangesAsync();
+            }
+        }
+
+        private static async Task EnsureStandardCourtsExistAsync(AppDbContext context, CourtComplex complex)
+        {
+            var courtTypes = await context.CourtTypes.ToListAsync();
+            var badminton = courtTypes.FirstOrDefault(t => t.TypeName.Equals("Cầu lông", StringComparison.OrdinalIgnoreCase));
+            var pickleball = courtTypes.FirstOrDefault(t => t.TypeName.Equals("Pickleball", StringComparison.OrdinalIgnoreCase));
+            var basketball = courtTypes.FirstOrDefault(t => t.TypeName.Equals("Bóng rổ", StringComparison.OrdinalIgnoreCase));
+            var tennis = courtTypes.FirstOrDefault(t => t.TypeName.Equals("Tennis", StringComparison.OrdinalIgnoreCase));
+            var football = courtTypes.FirstOrDefault(t => t.TypeName.Equals("Bóng đá", StringComparison.OrdinalIgnoreCase));
+
+            var defaultCourts = new List<Court>();
+
+            if (badminton != null && !await context.Courts.AnyAsync(c => c.CourtTypeId == badminton.CourtTypeId))
+            {
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Cầu Lông A1",
+                    CourtCode = "CL-A1",
+                    CourtTypeId = badminton.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = 120000m,
+                    CourtSize = "13.4m x 6.1m"
+                });
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Cầu Lông A2",
+                    CourtCode = "CL-A2",
+                    CourtTypeId = badminton.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = 120000m,
+                    CourtSize = "13.4m x 6.1m"
+                });
+            }
+
+            if (pickleball != null && !await context.Courts.AnyAsync(c => c.CourtTypeId == pickleball.CourtTypeId))
+            {
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Pickleball P1",
+                    CourtCode = "PK-P1",
+                    CourtTypeId = pickleball.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(23, 0, 0),
+                    PricePerHour = 150000m,
+                    CourtSize = "13.4m x 6.1m"
+                });
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Pickleball P2",
+                    CourtCode = "PK-P2",
+                    CourtTypeId = pickleball.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(23, 0, 0),
+                    PricePerHour = 150000m,
+                    CourtSize = "13.4m x 6.1m"
+                });
+            }
+
+            if (basketball != null && !await context.Courts.AnyAsync(c => c.CourtTypeId == basketball.CourtTypeId))
+            {
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Bóng Rổ B1",
+                    CourtCode = "BR-B1",
+                    CourtTypeId = basketball.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = 200000m,
+                    CourtSize = "28m x 15m"
+                });
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Bóng Rổ B2 (Trong nhà)",
+                    CourtCode = "BR-B2",
+                    CourtTypeId = basketball.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = 250000m,
+                    CourtSize = "28m x 15m"
+                });
+            }
+
+            if (tennis != null && !await context.Courts.AnyAsync(c => c.CourtTypeId == tennis.CourtTypeId))
+            {
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Tennis T1",
+                    CourtCode = "TN-T1",
+                    CourtTypeId = tennis.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(22, 0, 0),
+                    PricePerHour = 180000m,
+                    CourtSize = "23.77m x 10.97m"
+                });
+            }
+
+            if (football != null && !await context.Courts.AnyAsync(c => c.CourtTypeId == football.CourtTypeId))
+            {
+                defaultCourts.Add(new Court
+                {
+                    CourtName = "Sân Bóng Đá Mini F1",
+                    CourtCode = "BD-F1",
+                    CourtTypeId = football.CourtTypeId,
+                    ComplexId = complex.ComplexId,
+                    Status = CourtStatus.Available,
+                    OpenTime = new TimeSpan(6, 0, 0),
+                    CloseTime = new TimeSpan(23, 0, 0),
+                    PricePerHour = 300000m,
+                    CourtSize = "40m x 20m"
+                });
+            }
+
+            if (defaultCourts.Any())
+            {
+                await context.Courts.AddRangeAsync(defaultCourts);
+                await context.SaveChangesAsync();
+            }
+
+            // Ensure court pricings exist for all courts across all time slots
+            var allCourts = await context.Courts.ToListAsync();
+            var timeSlots = await context.TimeSlots.ToListAsync();
+            if (timeSlots.Any())
+            {
+                var newPricings = new List<CourtPricing>();
+                foreach (var court in allCourts)
+                {
+                    var existingSlotIds = await context.CourtPricings
+                        .Where(p => p.CourtId == court.CourtId)
+                        .Select(p => p.SlotId)
+                        .ToListAsync();
+
+                    var missingSlots = timeSlots.Where(s => !existingSlotIds.Contains(s.SlotId)).ToList();
+                    foreach (var slot in missingSlots)
+                    {
+                        newPricings.Add(new CourtPricing
+                        {
+                            CourtId = court.CourtId,
+                            SlotId = slot.SlotId,
+                            Price = court.PricePerHour > 0 ? court.PricePerHour : 120000m,
+                            EffectiveFrom = DateTime.Today
+                        });
+                    }
+                }
+                if (newPricings.Any())
+                {
+                    await context.CourtPricings.AddRangeAsync(newPricings);
+                    await context.SaveChangesAsync();
+                }
             }
         }
     }

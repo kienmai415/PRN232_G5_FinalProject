@@ -40,9 +40,9 @@ public class MockDataStore
 
     public List<CourtTypeDto> CourtTypes { get; } =
     [
-        new() { CourtTypeId = 1, TypeName = "Pickleball", IsActive = true },
-        new() { CourtTypeId = 2, TypeName = "Cầu lông", IsActive = true },
-        new() { CourtTypeId = 3, TypeName = "Bóng đá mini", IsActive = true },
+        new() { CourtTypeId = 1, TypeName = "Cầu lông", IsActive = true },
+        new() { CourtTypeId = 2, TypeName = "Bóng đá", IsActive = true },
+        new() { CourtTypeId = 3, TypeName = "Pickleball", IsActive = true },
         new() { CourtTypeId = 4, TypeName = "Tennis", IsActive = true },
         new() { CourtTypeId = 5, TypeName = "Bóng rổ", IsActive = true },
     ];

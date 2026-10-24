@@ -44,6 +44,7 @@ namespace SportCourtManagent_Server.DTOs.Court
         public int ManagerId { get; set; }
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
+        public List<int>? CourtTypeIds { get; set; } = new();
     }
 
     public class ImageUploadResultDto

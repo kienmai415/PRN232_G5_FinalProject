@@ -7,18 +7,22 @@
     var timeSlots = (ViewBag.TimeSlots as IEnumerable<TimeSlotDto> ?? Enumerable.Empty<TimeSlotDto>()).ToList();
     var services = (ViewBag.ComplexServices as IEnumerable<ComplexCourtTypeServiceDto> ?? Enumerable.Empty<ComplexCourtTypeServiceDto>()).ToList();
 
-    string NormalizeCourtType(string? value)
+    string NormalizeCourtType(string? value, string? courtName = null)
     {
-        var name = value ?? "Khác";
+        var name = $"{value} {courtName}";
         if (name.Contains("Cầu Lông", StringComparison.OrdinalIgnoreCase)) return "Sân Cầu Lông";
         if (name.Contains("Bóng Rổ", StringComparison.OrdinalIgnoreCase)) return "Sân Bóng Rổ";
         if (name.Contains("Tennis", StringComparison.OrdinalIgnoreCase)) return "Sân Tennis";
         if (name.Contains("Pickleball", StringComparison.OrdinalIgnoreCase)) return "Sân Pickleball";
         if (name.Contains("Bóng Đá", StringComparison.OrdinalIgnoreCase)) return "Sân Bóng Đá Mini";
-        return name;
+        return value ?? "Khác";
     }
 
-    var courtTypes = courts.Select(c => NormalizeCourtType(c.CourtTypeName)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    var allTypesFromApi = (ViewBag.CourtTypes as IEnumerable<SportCourtManagement_FrontEnd.Models.Courts.CourtTypeDto> ?? Enumerable.Empty<SportCourtManagement_FrontEnd.Models.Courts.CourtTypeDto>()).ToList();
+    var courtTypes = courts.Select(c => NormalizeCourtType(c.CourtTypeName, c.CourtName))
+        .Union(allTypesFromApi.Select(t => NormalizeCourtType(t.TypeName)))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 @section Styles {
@@ -135,7 +139,7 @@
                         }
                         @foreach (var court in courts)
                         {
-                            var normalizedType = NormalizeCourtType(court.CourtTypeName);
+                            var normalizedType = NormalizeCourtType(court.CourtTypeName, court.CourtName);
                             var courtServices = services.Where(s => s.CourtTypeId == court.CourtTypeId).ToList();
                             <article class="tc-court-card court-item"
                                      data-court-id="@court.CourtId"

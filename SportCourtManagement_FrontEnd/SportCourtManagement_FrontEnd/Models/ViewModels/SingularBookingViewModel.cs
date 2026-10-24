@@ -29,4 +29,10 @@ public class SingularBookingViewModel
 
     /// <summary>Pre-selected slot ID.</summary>
     public int? SelectedSlotId { get; set; }
+
+    /// <summary>All available court types for filtering.</summary>
+    public List<CourtTypeDto> CourtTypes { get; set; } = new();
+
+    /// <summary>Pre-selected court type ID.</summary>
+    public int? SelectedCourtTypeId { get; set; }
 }

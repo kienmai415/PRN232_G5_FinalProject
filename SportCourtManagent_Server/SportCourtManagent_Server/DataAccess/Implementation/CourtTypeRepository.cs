@@ -50,8 +50,9 @@ namespace SportCourtManagent_Server.DataAccess.Implementation
 
         public async Task<IEnumerable<CourtType>> GetAllActiveAsync() =>
             await _context.CourtTypes
+                .Include(t => t.Courts)
                 .Where(t => t.IsActive)
-                .OrderBy(t => t.TypeName)
+                .OrderBy(t => t.CourtTypeId)
                 .ToListAsync();
 
         public Task<CourtType?> GetByIdAsync(int id) =>

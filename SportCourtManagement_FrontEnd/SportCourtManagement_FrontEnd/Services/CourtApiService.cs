@@ -160,41 +160,75 @@ public class CourtApiService : ICourtApiService
 
     public async Task<List<CourtTypeDto>> GetCourtTypesAsync()
     {
+        var list = new List<CourtTypeDto>();
         try
         {
-            var response = await _httpClient.GetFromJsonAsync<PagedResult<CourtListDto>>(
-                "api/courts?PageSize=50"
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<CourtTypeDto>>>(
+                "api/court-types",
+                _jsonOptions
             );
-            if (response != null && response.Items != null)
+            if (response != null && response.Data != null && response.Data.Any())
             {
-                var types = new List<CourtTypeDto>();
-                var seenIds = new HashSet<int>();
-                foreach (var court in response.Items)
-                {
-                    if (court.CourtTypeId > 0 && !seenIds.Contains(court.CourtTypeId))
-                    {
-                        seenIds.Add(court.CourtTypeId);
-                        types.Add(
-                            new CourtTypeDto
-                            {
-                                CourtTypeId = court.CourtTypeId,
-                                TypeName = court.CourtTypeName,
-                                IsActive = true,
-                                CourtCount = response.Items.Count(c =>
-                                    c.CourtTypeId == court.CourtTypeId
-                                ),
-                            }
-                        );
-                    }
-                }
-                return types;
+                list = response.Data.Where(t => t.IsActive).ToList();
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing GetCourtTypes workaround");
+            _logger.LogError(ex, "Error executing GetCourtTypes from api/court-types");
         }
-        return new List<CourtTypeDto>();
+
+        // Try to update CourtCount if courts exist
+        try
+        {
+            var courtsRes = await _httpClient.GetFromJsonAsync<PagedResult<CourtListDto>>(
+                "api/courts?PageSize=100",
+                _jsonOptions
+            );
+            if (courtsRes != null && courtsRes.Items != null && courtsRes.Items.Any())
+            {
+                foreach (var t in list)
+                {
+                    var count = courtsRes.Items.Count(c => c.CourtTypeId == t.CourtTypeId);
+                    if (count > t.CourtCount)
+                    {
+                        t.CourtCount = count;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore optional court count enhancement
+        }
+
+        EnsureDefaultCourtTypes(list);
+        return list.OrderBy(t => t.CourtTypeId).ToList();
+    }
+
+    private static void EnsureDefaultCourtTypes(List<CourtTypeDto> list)
+    {
+        var defaults = new (int Id, string Name)[]
+        {
+            (1, "Cầu lông"),
+            (2, "Bóng đá"),
+            (3, "Pickleball"),
+            (4, "Tennis"),
+            (5, "Bóng rổ")
+        };
+
+        foreach (var def in defaults)
+        {
+            if (!list.Any(t => t.CourtTypeId == def.Id || t.TypeName.Equals(def.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                list.Add(new CourtTypeDto
+                {
+                    CourtTypeId = def.Id,
+                    TypeName = def.Name,
+                    IsActive = true,
+                    CourtCount = 0
+                });
+            }
+        }
     }
 
     public async Task<List<ServiceDto>> GetServicesAsync()

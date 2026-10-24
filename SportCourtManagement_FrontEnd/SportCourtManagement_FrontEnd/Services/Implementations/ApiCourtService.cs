@@ -49,7 +49,8 @@ public class ApiCourtService(ApiClient api) : ICourtService
             dto.Address,
             dto.ManagerId,
             dto.Description,
-            dto.ImageUrl
+            dto.ImageUrl,
+            dto.CourtTypeIds
         };
         return await api.PostDataAsync<CourtComplexDto>("api/complexes", payload)
             ?? throw new InvalidOperationException("Tạo tổ hợp sân thất bại.");
@@ -63,7 +64,8 @@ public class ApiCourtService(ApiClient api) : ICourtService
             dto.Address,
             dto.ManagerId,
             dto.Description,
-            dto.ImageUrl
+            dto.ImageUrl,
+            dto.CourtTypeIds
         };
         await api.PutDataAsync<CourtComplexDto>($"api/complexes/{id}", payload);
     }
@@ -82,7 +84,31 @@ public class ApiCourtService(ApiClient api) : ICourtService
     public async Task<List<CourtTypeDto>> GetCourtTypesAsync()
     {
         var types = await api.GetDataAsync<List<CourtTypeDto>>("api/court-types");
-        return types ?? [];
+        var list = types ?? [];
+        
+        var defaults = new (int Id, string Name)[]
+        {
+            (1, "Cầu lông"),
+            (2, "Bóng đá"),
+            (3, "Pickleball"),
+            (4, "Tennis"),
+            (5, "Bóng rổ")
+        };
+
+        foreach (var def in defaults)
+        {
+            if (!list.Any(t => t.CourtTypeId == def.Id || t.TypeName.Equals(def.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                list.Add(new CourtTypeDto
+                {
+                    CourtTypeId = def.Id,
+                    TypeName = def.Name,
+                    IsActive = true
+                });
+            }
+        }
+
+        return list.OrderBy(t => t.CourtTypeId).ToList();
     }
 
     public async Task<List<UserDto>> GetManagersAsync()

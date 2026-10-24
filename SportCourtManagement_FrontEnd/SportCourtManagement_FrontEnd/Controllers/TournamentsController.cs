@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SportCourtManagement_FrontEnd.Models.Courts;
 using SportCourtManagement_FrontEnd.Models.Tournaments;
 using SportCourtManagement_FrontEnd.Services;
 using SportCourtManagement_FrontEnd.Services.Api;
@@ -107,26 +110,60 @@ public class TournamentsController : Controller
   }
 
   // GET: /Tournaments/Create (Màn hình 5)
+  private async Task PopulateTournamentFormDataAsync()
+  {
+    var courtTypes = await _apiService.GetCourtTypesAsync();
+    if (courtTypes == null || !courtTypes.Any())
+    {
+      courtTypes = new List<CourtTypeDto>
+      {
+        new() { CourtTypeId = 1, TypeName = "Cầu lông", IsActive = true },
+        new() { CourtTypeId = 2, TypeName = "Bóng đá", IsActive = true },
+        new() { CourtTypeId = 3, TypeName = "Pickleball", IsActive = true },
+        new() { CourtTypeId = 4, TypeName = "Tennis", IsActive = true },
+        new() { CourtTypeId = 5, TypeName = "Bóng rổ", IsActive = true }
+      };
+    }
+    ViewBag.CourtTypes = courtTypes;
+    ViewBag.TimeSlots = await _apiService.GetTimeSlotsAsync();
+
+    // Query courts across all available court types sequentially to avoid session concurrency collisions
+    var courts = new List<CourtListDto>();
+    foreach (var ct in courtTypes)
+    {
+      var res = await _apiService.SearchCourtsAsync(new CourtSearchParams
+      {
+        PageNumber = 1,
+        PageSize = 15,
+        CourtTypeId = ct.CourtTypeId
+      });
+      if (res?.Items != null && res.Items.Any())
+      {
+        courts.AddRange(res.Items);
+      }
+    }
+
+    if (!courts.Any())
+    {
+      var fallback = await _apiService.SearchCourtsAsync(new CourtSearchParams { PageNumber = 1, PageSize = 50 });
+      courts = fallback?.Items?.ToList() ?? new();
+    }
+    ViewBag.Courts = courts;
+
+    var complexServices = new List<SportCourtManagement_FrontEnd.Models.DTOs.ComplexCourtTypeServiceDto>();
+    var complexIds = new List<int> { 1 };
+    foreach (var cid in complexIds)
+    {
+      var svcs = await _apiService.GetComplexServicesAsync(cid);
+      complexServices.AddRange(svcs);
+    }
+    ViewBag.ComplexServices = complexServices;
+  }
+
   [HttpGet]
   public async Task<IActionResult> Create()
   {
-    var courtsSearch = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams { PageSize = 50 });
-    ViewBag.Courts = courtsSearch.Items;
-    ViewBag.CourtTypes = await _apiService.GetCourtTypesAsync();
-    ViewBag.TimeSlots = await _apiService.GetTimeSlotsAsync();
-    
-    var complexServices = new List<SportCourtManagement_FrontEnd.Models.DTOs.ComplexCourtTypeServiceDto>();
-    if (courtsSearch.Items != null)
-    {
-      var complexIds = new List<int> { 1 };
-      foreach (var cid in complexIds)
-      {
-        var svcs = await _apiService.GetComplexServicesAsync(cid);
-        complexServices.AddRange(svcs);
-      }
-    }
-    ViewBag.ComplexServices = complexServices;
-    
+    await PopulateTournamentFormDataAsync();
     return View(new CreateTournamentFormDto());
   }
 
@@ -137,23 +174,7 @@ public class TournamentsController : Controller
   {
     if (!ModelState.IsValid)
     {
-      var courtsSearch = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams { PageSize = 50 });
-      ViewBag.Courts = courtsSearch.Items;
-      ViewBag.CourtTypes = await _apiService.GetCourtTypesAsync();
-      ViewBag.TimeSlots = await _apiService.GetTimeSlotsAsync();
-      
-      var complexServices = new List<SportCourtManagement_FrontEnd.Models.DTOs.ComplexCourtTypeServiceDto>();
-      if (courtsSearch.Items != null)
-      {
-        var complexIds = new List<int> { 1 };
-        foreach (var cid in complexIds)
-        {
-          var svcs = await _apiService.GetComplexServicesAsync(cid);
-          complexServices.AddRange(svcs);
-        }
-      }
-      ViewBag.ComplexServices = complexServices;
-      
+      await PopulateTournamentFormDataAsync();
       return View(form);
     }
 
@@ -173,23 +194,7 @@ public class TournamentsController : Controller
     if (created == null)
     {
       ModelState.AddModelError("", !string.IsNullOrWhiteSpace(errMsg) ? errMsg : "Đặt giải đấu thất bại. Khung giờ chọn có thể đã kín lịch.");
-      var courtsSearch = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams { PageSize = 50 });
-      ViewBag.Courts = courtsSearch.Items;
-      ViewBag.CourtTypes = await _apiService.GetCourtTypesAsync();
-      ViewBag.TimeSlots = await _apiService.GetTimeSlotsAsync();
-      
-      var complexServices = new List<SportCourtManagement_FrontEnd.Models.DTOs.ComplexCourtTypeServiceDto>();
-      if (courtsSearch.Items != null)
-      {
-        var complexIds = new List<int> { 1 };
-        foreach (var cid in complexIds)
-        {
-          var svcs = await _apiService.GetComplexServicesAsync(cid);
-          complexServices.AddRange(svcs);
-        }
-      }
-      ViewBag.ComplexServices = complexServices;
-      
+      await PopulateTournamentFormDataAsync();
       return View(form);
     }
 
@@ -361,7 +366,7 @@ public class TournamentsController : Controller
             draftTour.Bookings.Add(new TournamentBookingItemDto
             {
               CourtId = sel.CourtId,
-              CourtName = court?.CourtName ?? "Sân thể thao",
+              CourtName = court?.CourtName ?? courtDetail?.CourtName ?? "Sân thể thao",
               SlotName = slotItem?.SlotName ?? $"Slot #{slotId}",
               StartTime = slotItem?.StartTime ?? "",
               EndTime = slotItem?.EndTime ?? "",

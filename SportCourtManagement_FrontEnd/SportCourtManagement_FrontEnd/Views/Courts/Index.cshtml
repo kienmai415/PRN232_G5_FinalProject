@@ -329,10 +329,21 @@
                         </label>
                     `);
 
-                    types.forEach(function(type) {
+                    const fallbackTypes = [
+                        { courtTypeId: 1, typeName: "Cầu lông", courtCount: 0 },
+                        { courtTypeId: 2, typeName: "Bóng đá", courtCount: 0 },
+                        { courtTypeId: 3, typeName: "Pickleball", courtCount: 0 },
+                        { courtTypeId: 4, typeName: "Tennis", courtCount: 0 },
+                        { courtTypeId: 5, typeName: "Bóng rổ", courtCount: 0 }
+                    ];
+
+                    const displayTypes = (types && types.length > 0) ? types : fallbackTypes;
+
+                    displayTypes.forEach(function(type) {
                         const typeId = type.courtTypeId !== undefined ? type.courtTypeId : type.CourtTypeId;
                         const typeName = type.typeName !== undefined ? type.typeName : type.TypeName;
-                        const courtCount = type.courtCount !== undefined ? type.courtCount : type.CourtCount;
+                        const rawCount = type.courtCount !== undefined ? type.courtCount : type.CourtCount;
+                        const courtCount = (rawCount !== undefined && rawCount !== null) ? rawCount : 0;
                         const isChecked = (initialTypeId && initialTypeId == typeId) ? 'checked' : '';
                         listContainer.append(`
                             <label class="d-flex justify-content-between align-items-center px-2 py-2 rounded style-label-hover" style="cursor: pointer; transition: background-color 0.2s;">
@@ -349,8 +360,38 @@
                     // Call fetchCourts after the types are fully loaded and rendered
                     fetchCourts();
                 }).fail(function() {
-                    $('#court-types-list').html('<p class="text-danger small">Không thể tải loại sân</p>');
-                    // Call fetchCourts anyway so the list still loads if types fail
+                    const fallbackTypes = [
+                        { courtTypeId: 1, typeName: "Cầu lông", courtCount: 0 },
+                        { courtTypeId: 2, typeName: "Bóng đá", courtCount: 0 },
+                        { courtTypeId: 3, typeName: "Pickleball", courtCount: 0 },
+                        { courtTypeId: 4, typeName: "Tennis", courtCount: 0 },
+                        { courtTypeId: 5, typeName: "Bóng rổ", courtCount: 0 }
+                    ];
+                    const listContainer = $('#court-types-list');
+                    listContainer.empty();
+                    const isAllChecked = !initialTypeId ? 'checked' : '';
+                    listContainer.append(`
+                        <label class="d-flex justify-content-between align-items-center px-2 py-2 rounded style-label-hover" style="cursor: pointer; transition: background-color 0.2s;">
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="radio" name="CourtTypeId" value="" ${isAllChecked} style="accent-color: var(--sc-blue); cursor: pointer;" />
+                                <span class="text-sc-primary font-inter" style="font-size: 13px;">Tất cả</span>
+                            </div>
+                        </label>
+                    `);
+                    fallbackTypes.forEach(function(type) {
+                        const isChecked = (initialTypeId && initialTypeId == type.courtTypeId) ? 'checked' : '';
+                        listContainer.append(`
+                            <label class="d-flex justify-content-between align-items-center px-2 py-2 rounded style-label-hover" style="cursor: pointer; transition: background-color 0.2s;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="radio" name="CourtTypeId" value="${type.courtTypeId}" ${isChecked} style="accent-color: var(--sc-blue); cursor: pointer;" />
+                                    <span class="text-sc-primary font-inter" style="font-size: 13px;">${type.typeName}</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-pill text-sc-muted font-inter" style="font-size: 11px; background-color: #141B2D;">
+                                    0
+                                </span>
+                            </label>
+                        `);
+                    });
                     fetchCourts();
                 });
             }
