@@ -116,6 +116,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
         }
 
         // ── POST: /manager/tasks/create
+        /// <summary>
+        /// Tạo và giao việc (Task Assignment) cho nhân viên phụ trách cơ sở
+        /// Xác thực thông tin nhân sự và hạn hoàn thành công việc
+        /// </summary>
         [HttpPost("create")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateTask(CreateTaskRequest model)

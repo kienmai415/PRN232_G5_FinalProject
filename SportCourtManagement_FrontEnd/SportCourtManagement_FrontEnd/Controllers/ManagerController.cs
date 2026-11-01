@@ -118,6 +118,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
         }
 
         // ── POST: /manager/staff/shifts/create ───────────────────────────────
+        /// <summary>
+        /// Phân ca làm việc mới cho nhân viên tại cơ sở được chọn (Operational Shift Assignment)
+        /// Kiểm tra ngày ca trực không được nằm trong quá khứ và forward request tới Backend API
+        /// </summary>
         [HttpPost("staff/shifts/create")]
         public async Task<IActionResult> CreateShift(CreateShiftRequest model)
         {
