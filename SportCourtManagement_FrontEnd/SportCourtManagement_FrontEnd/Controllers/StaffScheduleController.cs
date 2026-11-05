@@ -101,6 +101,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
         }
 
         // POST: /staff/schedule/check-in
+        /// <summary>
+        /// Nhân viên thực hiện Check-in vào ca trực tại cơ sở thể thao
+        /// Cập nhật thời gian thực tế bắt đầu làm việc
+        /// </summary>
         [HttpPost("check-in")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CheckIn([FromForm] int shiftId, [FromForm] string? weekStart = null, [FromForm] string filter = "my")

@@ -85,6 +85,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
 
 
         // POST: /staff/tasks/{taskId}/start
+        /// <summary>
+        /// Nhân viên bắt đầu thực hiện công việc (chuyển trạng thái từ Pending -> InProgress)
+        /// Ghi nhận thời điểm bắt đầu xử lý nhiệm vụ
+        /// </summary>
         [HttpPost("{taskId:int}/start")]
         public async Task<IActionResult> StartTask(int taskId, [FromQuery] string? status = null, [FromQuery] int page = 1)
         {
