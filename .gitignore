@@ -1,0 +1,46 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+**/bin/
+**/obj/
+
+# NuGet packages
+*.nupkg
+**/packages/
+!**/packages/build/
+
+# User secrets & local config (appsettings.json is included for team development & grading)
+# **/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/secrets.json
+
+# EF Core (logs/tools — keep Migrations/ in git so teammates can apply)
+*.efbackup
+
+# Test results
+**/TestResults/
+*.trx
+*.coveragexml
+
+# Publish output
+**/publish/
+
+# Docker
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Python / Frontend
+**/node_modules/
+**/dist/
+**/venv/
+**/__pycache__/
