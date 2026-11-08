@@ -160,6 +160,8 @@ namespace SportCourtManagent_Server.Controllers.Manager
             try
             {
                 var shift = await _staffService.GetShiftByIdAsync(shiftId);
+                if (shift.ComplexId != complexId)
+                    return NotFound(new { Message = "Không tìm thấy ca trực tại cơ sở này." });
                 return Ok(shift);
             }
             catch (KeyNotFoundException ex)
