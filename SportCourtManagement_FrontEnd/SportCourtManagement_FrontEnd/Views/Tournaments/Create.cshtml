@@ -1,0 +1,293 @@
+@model SportCourtManagement_FrontEnd.Models.Tournaments.CreateTournamentFormDto
+@using SportCourtManagement_FrontEnd.Models.Courts
+@using SportCourtManagement_FrontEnd.Models.DTOs
+@{
+    ViewData["Title"] = "Đăng ký tổ chức giải đấu";
+    var courts = (ViewBag.Courts as IEnumerable<CourtListDto> ?? Enumerable.Empty<CourtListDto>()).ToList();
+    var timeSlots = (ViewBag.TimeSlots as IEnumerable<TimeSlotDto> ?? Enumerable.Empty<TimeSlotDto>()).ToList();
+    var services = (ViewBag.ComplexServices as IEnumerable<ComplexCourtTypeServiceDto> ?? Enumerable.Empty<ComplexCourtTypeServiceDto>()).ToList();
+
+    string NormalizeCourtType(string? value)
+    {
+        var name = value ?? "Khác";
+        if (name.Contains("Cầu Lông", StringComparison.OrdinalIgnoreCase)) return "Sân Cầu Lông";
+        if (name.Contains("Bóng Rổ", StringComparison.OrdinalIgnoreCase)) return "Sân Bóng Rổ";
+        if (name.Contains("Tennis", StringComparison.OrdinalIgnoreCase)) return "Sân Tennis";
+        if (name.Contains("Pickleball", StringComparison.OrdinalIgnoreCase)) return "Sân Pickleball";
+        if (name.Contains("Bóng Đá", StringComparison.OrdinalIgnoreCase)) return "Sân Bóng Đá Mini";
+        return name;
+    }
+
+    var courtTypes = courts.Select(c => NormalizeCourtType(c.CourtTypeName)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tournament-create.css" asp-append-version="true" />
+}
+
+<main class="sc-container tournament-create-page pb-4">
+    <nav class="sc-breadcrumb" aria-label="Điều hướng">
+        <a asp-controller="Home" asp-action="Index">Trang chủ</a>
+        <span>›</span>
+        <a asp-action="MyTournaments">Giải đấu của tôi</a>
+        <span>›</span>
+        <span class="text-white fw-medium">Đặt giải đấu</span>
+    </nav>
+
+    <header class="tc-hero">
+        <div class="tc-hero-top d-flex align-items-start justify-content-between gap-3">
+            <div class="position-relative z-1">
+                <div class="tc-eyebrow mb-2"><i class="bi bi-trophy-fill me-1 text-warning"></i> Công cụ dành cho ban tổ chức</div>
+                <h1 class="font-outfit fs-2 mb-2">Xây dựng lịch thi đấu</h1>
+                <p class="text-sc-muted mb-0" style="max-width: 680px; font-size: 14px;">
+                    Chọn nhiều sân và ca theo từng ngày. Trạng thái được cập nhật trực tiếp để hạn chế tối đa việc chọn trùng.
+                </p>
+            </div>
+            <div id="realtimeStatus" class="tc-live-pill is-polling" role="status" aria-live="polite">
+                <span class="tc-live-dot"></span>
+                <span id="realtimeStatusText">Đang kết nối dữ liệu trực tiếp</span>
+            </div>
+        </div>
+        <div class="tc-progress" aria-label="Tiến trình đặt giải">
+            <div class="tc-progress-item is-active" data-step="1">Thông tin</div>
+            <div class="tc-progress-item is-active" data-step="2">Lịch sân</div>
+            <div class="tc-progress-item" data-step="3">Xác nhận</div>
+        </div>
+    </header>
+
+    <div id="conflictAlertBanner" class="tc-alert" role="alert" hidden>
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div class="flex-grow-1">
+            <strong class="d-block text-white mb-1">Lịch vừa có thay đổi</strong>
+            <span id="conflictAlertMessage"></span>
+        </div>
+        <button type="button" id="dismissConflict" class="btn-close btn-close-white" aria-label="Đóng"></button>
+    </div>
+
+    <form id="tournamentForm" novalidate>
+        @Html.AntiForgeryToken()
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <section class="tc-panel" aria-labelledby="generalHeading">
+                    <h2 id="generalHeading" class="tc-section-title">
+                        <span class="tc-section-icon"><i class="bi bi-card-text"></i></span>
+                        Thông tin giải đấu
+                    </h2>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="TournamentName" class="tc-field-label form-label">Tên giải đấu <span class="text-danger">*</span></label>
+                            <input asp-for="TournamentName" id="inputTournamentName" class="sc-input" maxlength="200" placeholder="Ví dụ: Giải Cầu Lông Mở Rộng 2026" autocomplete="off" required />
+                            <span asp-validation-for="TournamentName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Description" class="tc-field-label form-label">Mô tả và quy mô</label>
+                            <textarea asp-for="Description" id="inputDescription" class="sc-input tc-textarea" maxlength="1000" placeholder="Thể lệ, số đội và yêu cầu tổ chức dự kiến..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tc-panel" aria-labelledby="scheduleHeading">
+                    <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+                        <h2 id="scheduleHeading" class="tc-section-title mb-0">
+                            <span class="tc-section-icon"><i class="bi bi-calendar2-week"></i></span>
+                            Chọn sân và khung giờ
+                        </h2>
+                        <span id="availableCounter" class="sc-badge sc-badge-green">Đang tải lịch...</span>
+                    </div>
+
+                    <div class="tc-date-toolbar">
+                        <div class="tc-date-wrap">
+                            <label for="builderDate" class="tc-field-label form-label"><i class="bi bi-calendar3 me-1"></i> Ngày thi đấu</label>
+                            <input type="date" class="sc-input" id="builderDate" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@DateTime.Today.AddDays(7).ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="tc-sync-meta">
+                            <button type="button" id="refreshAvailability" class="btn btn-link p-0 text-decoration-none" style="font-size: 12px;">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+                            </button>
+                            <div id="lastSyncedText" class="mt-1">Chưa đồng bộ</div>
+                        </div>
+                    </div>
+
+                    <div class="tc-filter-row" id="courtTypeFilters" aria-label="Lọc theo môn thể thao">
+                        <button type="button" class="tc-filter-btn is-active" data-filter="all">Tất cả sân</button>
+                        @foreach (var type in courtTypes)
+                        {
+                            <button type="button" class="tc-filter-btn" data-filter="@type">@type</button>
+                        }
+                    </div>
+
+                    <div class="tc-legend" aria-label="Chú thích trạng thái">
+                        <span class="tc-legend-item"><i class="tc-legend-dot available"></i> Còn trống</span>
+                        <span class="tc-legend-item"><i class="tc-legend-dot held"></i> Đang giữ thanh toán</span>
+                        <span class="tc-legend-item"><i class="tc-legend-dot booked"></i> Đã đặt</span>
+                        <span class="tc-legend-item"><i class="tc-legend-dot maintenance"></i> Bảo trì / đóng</span>
+                        <span class="tc-legend-item"><i class="tc-legend-dot selected"></i> Đang chọn</span>
+                        <span class="tc-legend-item"><i class="tc-legend-dot scheduled"></i> Đã thêm vào lịch</span>
+                    </div>
+
+                    <div id="courtContainer" class="tc-court-list" aria-live="polite">
+                        @if (courts.Count == 0)
+                        {
+                            <div class="tc-empty">
+                                <i class="bi bi-building-x fs-3 d-block mb-2"></i>
+                                Chưa có dữ liệu sân để tạo lịch thi đấu.
+                            </div>
+                        }
+                        @foreach (var court in courts)
+                        {
+                            var normalizedType = NormalizeCourtType(court.CourtTypeName);
+                            var courtServices = services.Where(s => s.CourtTypeId == court.CourtTypeId).ToList();
+                            <article class="tc-court-card court-item"
+                                     data-court-id="@court.CourtId"
+                                     data-court-name="@court.CourtName"
+                                     data-court-type="@normalizedType"
+                                     data-court-status="@court.Status">
+                                <div class="tc-court-head">
+                                    <div class="min-w-0">
+                                        <div class="tc-court-name">@court.CourtName</div>
+                                        <div class="tc-court-meta">
+                                            <span>@normalizedType</span>
+                                            @if (!string.IsNullOrWhiteSpace(court.Location))
+                                            {
+                                                <span> · @court.Location</span>
+                                            }
+                                            <span class="court-availability-copy"> · Đang kiểm tra...</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="tc-select-all" data-action="select-all" data-court-id="@court.CourtId" disabled>Chọn ca trống</button>
+                                </div>
+
+                                <div class="tc-slot-grid">
+                                    @foreach (var slot in timeSlots)
+                                    {
+                                        <div>
+                                            <input type="checkbox" class="tc-slot-input slot-checkbox"
+                                                   id="slot_@(slot.SlotId)_@(court.CourtId)"
+                                                   value="@slot.SlotId"
+                                                   data-court-id="@court.CourtId"
+                                                   data-slot-id="@slot.SlotId"
+                                                   data-slot-name="@slot.SlotName"
+                                                   data-price="0" disabled />
+                                            <label class="tc-slot-label status-loading" for="slot_@(slot.SlotId)_@(court.CourtId)" data-status="Loading">
+                                                <span class="tc-slot-copy">
+                                                    <span class="tc-slot-name">@slot.SlotName</span>
+                                                    <span class="tc-slot-state">Đang kiểm tra</span>
+                                                </span>
+                                                <span class="tc-slot-price">--</span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                <details class="tc-services">
+                                    <summary><i class="bi bi-plus-circle me-1"></i>Dịch vụ cho sân này (tùy chọn)</summary>
+                                    @if (courtServices.Count > 0)
+                                    {
+                                        <div class="tc-service-grid">
+                                            @foreach (var service in courtServices)
+                                            {
+                                                <div class="tc-service-item">
+                                                    <div class="min-w-0">
+                                                        <div class="tc-service-name" title="@service.ServiceName">@service.ServiceName</div>
+                                                        <div class="tc-service-price">@service.Price.ToString("N0")đ</div>
+                                                    </div>
+                                                    <input type="number" class="tc-service-input service-input" value="0" min="0" max="50"
+                                                           aria-label="Số lượng @service.ServiceName"
+                                                           data-court-id="@court.CourtId"
+                                                           data-service-id="@service.ServiceId"
+                                                           data-service-name="@service.ServiceName"
+                                                           data-service-price="@service.Price" />
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-sc-muted mt-2" style="font-size: 11px;">Sân này chưa có dịch vụ đi kèm.</div>
+                                    }
+                                </details>
+                            </article>
+                        }
+                    </div>
+
+                    <div class="tc-add-bar">
+                        <span id="selectionCount" class="tc-selection-count">Chưa chọn ca nào cho ngày này</span>
+                        <button type="button" id="btnAddSchedule" class="sc-btn sc-btn-primary" disabled>
+                            <i class="bi bi-plus-circle me-2"></i>Thêm vào lịch thi đấu
+                        </button>
+                    </div>
+                </section>
+
+                <section class="tc-panel" aria-labelledby="optionalHeading">
+                    <h2 id="optionalHeading" class="tc-section-title">
+                        <span class="tc-section-icon"><i class="bi bi-chat-square-text"></i></span>
+                        Ưu đãi và yêu cầu thêm
+                    </h2>
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label asp-for="PromotionCode" class="tc-field-label form-label">Mã ưu đãi</label>
+                            <input asp-for="PromotionCode" id="inputPromotionCode" class="sc-input text-uppercase" placeholder="Ví dụ: TOUR2026" />
+                        </div>
+                        <div class="col-md-7">
+                            <label asp-for="Note" class="tc-field-label form-label">Ghi chú cho ban quản lý</label>
+                            <input asp-for="Note" id="inputNote" class="sc-input" placeholder="Âm thanh, bảng điểm, khu vực check-in..." />
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="col-lg-4">
+                <div class="sc-card tc-summary" aria-labelledby="summaryHeading">
+                    <div class="tc-summary-head">
+                        <div class="tc-eyebrow mb-1">Bước xác nhận</div>
+                        <h2 id="summaryHeading" class="font-outfit text-white fs-5 fw-bold mb-1">Lịch thi đấu của bạn</h2>
+                        <div class="text-sc-muted" style="font-size: 11px;">Lịch thi đấu sẽ được xác nhận khi thanh toán thành công.</div>
+                    </div>
+                    <div class="tc-summary-body">
+                        <div class="mb-3">
+                            <div class="tc-field-label mb-1">Tên giải đấu</div>
+                            <div id="summaryTourName" class="tc-summary-name">Chưa nhập tên giải</div>
+                        </div>
+
+                        <div id="summaryCourtsList" class="tc-schedule-list mb-3">
+                            <div class="tc-empty">Chọn sân và ca, sau đó bấm “Thêm vào lịch thi đấu”.</div>
+                        </div>
+
+                        <div class="tc-total-row">
+                            <span>Số sân / ca</span>
+                            <strong id="summaryCountBadge">0 sân · 0 ca</strong>
+                        </div>
+                        <div class="tc-total-row">
+                            <span>Tạm tính</span>
+                            <strong id="summaryTotalCost" class="tc-total-price">0đ</strong>
+                        </div>
+
+                        <p class="tc-submit-note">
+                            Giá cuối cùng và ưu đãi sẽ được backend xác nhận. Hệ thống kiểm tra lại toàn bộ lịch ngay trước khi tạo đơn.
+                        </p>
+                        <button type="submit" id="btnSubmitTournament" class="sc-btn sc-btn-primary tc-submit" disabled>
+                            <i class="bi bi-shield-check me-2"></i>Xác nhận và giữ chỗ
+                        </button>
+                        <a asp-action="MyTournaments" class="sc-btn sc-btn-secondary w-100 mt-2">Quay lại danh sách</a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
+</main>
+
+<div id="tournamentToast" class="tc-toast" role="status" aria-live="polite"></div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script>
+        window.TOURNAMENT_CREATE_CONFIG = {
+            apiBaseUrl: '@Configuration["ApiSettings:BaseUrl"]',
+            availabilityUrl: '@Url.Action("GetSlotAvailability", "Booking")',
+            createUrl: '@Url.Action("CreateJson", "Tournaments")',
+            pollIntervalMs: 15000
+        };
+    </script>
+    <script src="~/js/tournament-create.js" asp-append-version="true"></script>
+}

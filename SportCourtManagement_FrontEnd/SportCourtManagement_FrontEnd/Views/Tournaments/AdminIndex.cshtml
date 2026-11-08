@@ -1,0 +1,186 @@
+@model SportCourtManagement_FrontEnd.Models.Tournaments.TournamentListViewModel
+@{
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản lý Giải đấu";
+    var activeFilterCount = (!string.IsNullOrWhiteSpace(Model.Keyword) ? 1 : 0)
+        + (Model.FromDate.HasValue ? 1 : 0) + (Model.ToDate.HasValue ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(Model.Status) ? 1 : 0);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-filter.css" asp-append-version="true" />
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fa-solid fa-trophy text-warning me-2"></i>Quản lý Giải đấu</h1>
+        <p class="page-subtitle">Phê duyệt, theo dõi và quản lý toàn bộ giải đấu trên hệ thống</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-success border-success">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-danger border-danger">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section class="af-shell" aria-label="Bộ lọc giải đấu">
+    <div class="af-heading">
+        <div class="af-title-wrap">
+            <span class="af-title-icon"><i class="fa-solid fa-sliders"></i></span>
+            <div><h2 class="af-title">Trung tâm lọc giải đấu</h2><p class="af-subtitle">Khoanh vùng yêu cầu cần duyệt theo người tổ chức, thời gian và trạng thái</p></div>
+        </div>
+        <span class="af-state @(activeFilterCount > 0 ? "is-filtered" : "")">
+            <i class="fa-solid fa-circle"></i>@(activeFilterCount > 0 ? $"{activeFilterCount} bộ lọc đang áp dụng" : "Đang hiển thị tất cả")
+        </span>
+    </div>
+    <form method="get" asp-action="AdminIndex" class="af-form">
+        <div class="af-grid">
+            <div class="af-field">
+                <label class="af-label" for="tournamentKeyword"><i class="fa-solid fa-magnifying-glass"></i>Tên giải / người tổ chức</label>
+                <div class="af-control"><i class="fa-solid fa-trophy"></i><input id="tournamentKeyword" type="search" name="keyword" value="@Model.Keyword" class="form-control" placeholder="Tìm giải đấu hoặc khách hàng..." /></div>
+            </div>
+            <div class="af-field">
+                <label class="af-label" for="tournamentFrom"><i class="fa-regular fa-calendar"></i>Tạo từ ngày</label>
+                <div class="af-control"><i class="fa-solid fa-calendar-day"></i><input id="tournamentFrom" type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            </div>
+            <div class="af-field">
+                <label class="af-label" for="tournamentTo"><i class="fa-regular fa-calendar-check"></i>Đến ngày</label>
+                <div class="af-control"><i class="fa-solid fa-calendar-check"></i><input id="tournamentTo" type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            </div>
+        </div>
+        <div class="af-bottom">
+            <div class="af-status-group">
+                <span class="af-status-caption">Trạng thái xử lý</span>
+                <div class="af-segments">
+                    <label class="af-segment af-muted"><input type="radio" name="status" value="" checked="@string.IsNullOrWhiteSpace(Model.Status)" /><span>Tất cả</span></label>
+                    <label class="af-segment af-warning"><input type="radio" name="status" value="Pending" checked="@(Model.Status == "Pending")" /><span>Chờ duyệt</span></label>
+                    <label class="af-segment af-info"><input type="radio" name="status" value="Confirmed" checked="@(Model.Status == "Confirmed")" /><span>Đã duyệt</span></label>
+                    <label class="af-segment"><input type="radio" name="status" value="Paid" checked="@(Model.Status == "Paid")" /><span>Đã thanh toán</span></label>
+                    <label class="af-segment af-danger"><input type="radio" name="status" value="Cancelled" checked="@(Model.Status == "Cancelled")" /><span>Đã hủy</span></label>
+                </div>
+            </div>
+            <div class="af-actions">
+                <a asp-action="AdminIndex" class="af-reset"><i class="fa-solid fa-arrow-rotate-left"></i>Đặt lại</a>
+                <button type="submit" class="af-submit"><i class="fa-solid fa-wand-magic-sparkles"></i>Áp dụng bộ lọc</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+@if (Model.PagedData.Items == null || !Model.PagedData.Items.Any())
+{
+    <div class="empty-state py-5 text-center">
+        <i class="fa-solid fa-trophy fs-1 text-secondary d-block mb-3"></i>
+        <p class="text-secondary">Chưa có yêu cầu giải đấu nào phù hợp.</p>
+    </div>
+}
+else
+{
+    <div class="admin-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên giải đấu</th>
+                    <th>Người tổ chức</th>
+                    <th>Ngày tạo</th>
+                    <th>Số booking</th>
+                    <th>Tổng chi phí</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.PagedData.Items)
+                {
+                    <tr>
+                        <td class="fw-bold text-white">#@item.TournamentId</td>
+                        <td>
+                            <div class="fw-bold text-white fs-6">@item.TournamentName</div>
+                            <div class="small text-secondary">@(item.Description ?? "Không có mô tả")</div>
+                        </td>
+                        <td class="fw-semibold" style="color: #60a5fa;">@item.CustomerName</td>
+                        <td class="text-secondary">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><span class="type-badge type-default">@item.Bookings.Count lịch đặt</span></td>
+                        <td class="text-danger fw-bold fs-6">@item.TotalAmount.ToString("N0")đ</td>
+                        <td>
+                            @switch (item.Status)
+                            {
+                                case "Confirmed":
+                                    <span class="status-badge status-available">Đã duyệt</span>
+                                    break;
+                                case "Paid":
+                                    <span class="status-badge status-available" style="background-color: rgba(16,185,129,0.2); color: #10b981;">Đã thanh toán</span>
+                                    break;
+                                case "Pending":
+                                    <span class="status-badge status-maintenance">Chờ duyệt</span>
+                                    break;
+                                case "Cancelled":
+                                    <span class="status-badge status-inactive">Đã hủy</span>
+                                    break;
+                                default:
+                                    <span class="type-badge type-default">@item.Status</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="AdminDetail" asp-route-id="@item.TournamentId" class="btn-ghost me-1" title="Chi tiết">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                            {
+                                @if (item.Status == "Pending")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline me-1">
+                                        <input type="hidden" name="id" value="@item.TournamentId" />
+                                        <input type="hidden" name="status" value="Confirmed" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("AdminIndex")" />
+                                        <button type="submit" class="btn-ghost text-success" title="Duyệt giải">
+                                            <i class="fa-solid fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                @if (item.Status != "Cancelled")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline" onsubmit="return confirm('Xác nhận hủy giải đấu này?');">
+                                        <input type="hidden" name="id" value="@item.TournamentId" />
+                                        <input type="hidden" name="status" value="Cancelled" />
+                                        <input type="hidden" name="cancelReason" value="Quản trị viên từ chối/hủy" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("AdminIndex")" />
+                                        <button type="submit" class="btn-ghost text-danger" title="Hủy giải">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.PagedData.TotalPages > 1)
+    {
+        <div class="pagination-custom mt-4">
+            @for (int i = 1; i <= Model.PagedData.TotalPages; i++)
+            {
+                <a asp-action="AdminIndex" asp-route-page="@i" asp-route-keyword="@Model.Keyword"
+                   asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                   asp-route-status="@Model.Status" class="@(i == Model.PagedData.PageNumber ? "active" : "")">@i</a>
+            }
+        </div>
+    }
+}

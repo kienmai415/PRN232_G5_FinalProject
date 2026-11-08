@@ -1,0 +1,222 @@
+@model List<SportCourtManagement_FrontEnd.Models.Bookings.SingularBookingResponseDto>
+
+@{
+    var firstBooking = Model.FirstOrDefault() ?? new SportCourtManagement_FrontEnd.Models.Bookings.SingularBookingResponseDto();
+    var isServicePayment = ViewBag.IsServicePayment as bool? ?? false;
+    ViewData["Title"] = isServicePayment ? "Thanh toán dịch vụ mua thêm" : "Thanh toán đơn hàng";
+    var qrCode = ViewBag.QrCode as SportCourtManagement_FrontEnd.Models.Bookings.SePayQrCodeDto;
+    var totalAmount = ViewBag.TotalAmount as decimal? ?? Model.Sum(b => b.TotalAmount);
+    var bookingCodesStr = ViewBag.BookingCodes as string ?? string.Join(",", Model.Select(b => b.BookingCode));
+}
+
+<main class="sc-container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="sc-card p-0" style="background-color: #0D121F; border: 1px solid rgba(79, 110, 247, 0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden;">
+
+                <!-- Header Gradient Banner -->
+                <div class="text-center py-4 px-4" style="background: linear-gradient(135deg, rgba(79, 110, 247, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 64px; height: 64px; background: rgba(245, 158, 11, 0.1); border: 2px solid rgba(245, 158, 11, 0.3);">
+                        <i class="bi bi-wallet2 text-warning" style="font-size: 28px;"></i>
+                    </div>
+                    <h3 class="text-white font-outfit fw-bold mb-1">@(isServicePayment ? "Thanh Toán Dịch Vụ Mua Thêm" : "Thanh Toán Đặt Sân")</h3>
+                    <p class="text-sc-muted mb-0 small">@(isServicePayment ? "Quét mã QR dưới đây để thanh toán bổ sung cho dịch vụ mua thêm" : "Quét mã QR dưới đây để hoàn tất thanh toán cho các đơn đặt sân")</p>
+                </div>
+
+                <div class="p-4">
+                    <!-- Booking Code Badges Container (Scrollable if > 4 items) -->
+                    <div class="text-center mb-4">
+                        @if (Model.Count > 4)
+                        {
+                            <div class="d-inline-block p-2 px-3 rounded-pill mb-2" style="background: rgba(79, 110, 247, 0.15); border: 1px solid rgba(79, 110, 247, 0.3); font-size: 13px;">
+                                <i class="bi bi-calendar2-range text-sc-amber me-1"></i>
+                                <span class="text-white fw-bold">Tổng cộng @Model.Count đơn đặt sân</span>
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-center gap-1 p-2 rounded-3" style="max-height: 100px; overflow-y: auto; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+                                @foreach (var booking in Model)
+                                {
+                                    <span class="px-2 py-1 rounded font-monospace" style="background: rgba(79, 110, 247, 0.1); font-size: 11px; color: #A5B4FC;">
+                                        #@booking.BookingCode
+                                    </span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                @foreach (var booking in Model)
+                                {
+                                    <span class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill" style="background: rgba(79, 110, 247, 0.1); border: 1px solid rgba(79, 110, 247, 0.3); font-size: 12px;">
+                                        <i class="bi bi-hash text-sc-blue-light"></i>
+                                        <span class="text-white fw-bold font-monospace">@booking.BookingCode</span>
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Bookings Details List (Scrollable box) -->
+                    <div class="p-3 rounded mb-4" style="background-color: #141B2D; border: 1px solid var(--sc-border); font-size: 13.5px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="text-white font-outfit mb-0" style="font-weight: 700;">
+                                <i class="bi bi-receipt me-1 text-sc-blue-light"></i> @(isServicePayment ? "Chi tiết dịch vụ mua thêm" : $"Chi tiết đơn hàng ({Model.Count} buổi)")
+                            </h6>
+                            @if (Model.Count > 3)
+                            {
+                                <span class="badge bg-secondary bg-opacity-20 text-sc-muted" style="font-size: 11px;"><i class="bi bi-arrows-expand me-1"></i>Cuộn để xem tất cả</span>
+                            }
+                        </div>
+
+                        <!-- Scrollable Items Container -->
+                        <div style="max-height: 320px; overflow-y: auto; padding-right: 6px;">
+                            @for (int i = 0; i < Model.Count; i++)
+                            {
+                                var booking = Model[i];
+                                <div class="mb-3 @(i > 0 ? "pt-3 border-top" : "")" style="@(i > 0 ? "border-top-color: rgba(255, 255, 255, 0.05) !important;" : "")">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-sc-blue-light fw-bold">#@booking.BookingCode</span>
+                                        <span class="text-sc-green fw-bold">@booking.TotalAmount.ToString("N0")đ</span>
+                                    </div>
+                                    @if (!isServicePayment)
+                                    {
+                                        <div class="d-flex justify-content-between mb-1" style="font-size: 12.5px;">
+                                            <span class="text-sc-muted">Sân đấu:</span>
+                                            <span class="text-white">@booking.CourtName</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1" style="font-size: 12.5px;">
+                                            <span class="text-sc-muted">Ngày:</span>
+                                            <span class="text-white">@booking.BookingDate.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1" style="font-size: 12.5px;">
+                                            <span class="text-sc-muted">Khung giờ:</span>
+                                            <span class="text-white">
+                                                @if (!string.IsNullOrEmpty(booking.SlotName))
+                                                {
+                                                    @booking.SlotName @($"({booking.StartTime:hh\\:mm} - {booking.EndTime:hh\\:mm})")
+                                                }
+                                                else
+                                                {
+                                                    @($"{booking.StartTime:hh\\:mm} - {booking.EndTime:hh\\:mm}")
+                                                }
+                                            </span>
+                                        </div>
+                                    }
+
+                                    @if (booking.BookingServices != null && booking.BookingServices.Any())
+                                    {
+                                        <div class="mt-2 pt-2 border-top border-white border-opacity-10" style="font-size: 12.5px;">
+                                            <span class="text-sc-muted d-block mb-1 font-outfit fw-bold"><i class="bi bi-bag-plus text-warning me-1"></i>Dịch vụ bổ sung:</span>
+                                            @foreach (var svc in booking.BookingServices)
+                                            {
+                                                <div class="d-flex justify-content-between align-items-center text-white py-1 px-2 mb-1 rounded" style="background: rgba(255,255,255,0.03);">
+                                                    <span>• @svc.ServiceName <span class="text-white-50">(@svc.Price.ToString("N0")đ/đơn vị)</span> x<strong class="text-white">@svc.Quantity</strong></span>
+                                                    <span class="text-sc-green fw-bold">@svc.TotalPrice.ToString("N0")đ</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <hr style="border-color: rgba(255,255,255,0.05); margin: 12px 0;" />
+                        <div class="d-flex justify-content-between align-items-baseline mt-3 pt-2">
+                            <span class="text-white fw-bold" style="font-size: 15px;">@(isServicePayment ? "Tổng tiền dịch vụ mua thêm:" : "Tổng cộng:")</span>
+                            <span class="font-outfit text-sc-green fw-black" style="font-size: 26px; font-weight: 900;">@totalAmount.ToString("N0")đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Wallet Payment Section -->
+                    @{
+                        var wallet = ViewBag.Wallet as SportCourtManagement_FrontEnd.Models.DTOs.WalletDto;
+                        var hasEnough = wallet != null && wallet.Balance >= totalAmount;
+                    }
+
+                    <div class="p-4 rounded-3 mb-4 text-center" style="background-color: #141B2D; border: 1px solid rgba(255,255,255,0.05);">
+                        @Html.AntiForgeryToken()
+                        <h6 class="text-white font-outfit mb-3" style="font-weight: 700;">
+                            <i class="bi bi-wallet2 me-1 text-sc-blue-light"></i> Thanh toán bằng Ví điện tử
+                        </h6>
+                        
+                        <div class="d-flex justify-content-center gap-4 mb-3 text-start bg-dark p-3 rounded">
+                            <div>
+                                <span class="text-white-50 small">Số dư ví của bạn:</span>
+                                <h5 class="text-white fw-bold mt-1">@(wallet?.Balance.ToString("N0") ?? "0")đ</h5>
+                            </div>
+                            <div class="border-start border-secondary opacity-25"></div>
+                            <div>
+                                <span class="text-white-50 small">Số tiền cần thanh toán:</span>
+                                <h5 class="text-sc-green fw-bold mt-1">@totalAmount.ToString("N0")đ</h5>
+                            </div>
+                        </div>
+
+                        @if (hasEnough)
+                        {
+                            <button type="button" id="btnPayWithWallet" class="sc-btn sc-btn-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2" style="border-radius: 12px; font-weight: 600;">
+                                <i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger border-0 small text-start py-2 px-3 mb-3" style="background: rgba(239, 68, 68, 0.1); color: #FCA5A5;">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i> Số dư ví không đủ. Vui lòng nạp thêm tiền.
+                            </div>
+                            <a href="/Wallet" class="sc-btn sc-btn-gradient w-100 py-3 text-center text-white text-decoration-none d-block" style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #4F6EF7 0%, #3B5BDF 100%);">
+                                <i class="bi bi-plus-circle"></i> Nạp tiền vào ví (@((totalAmount - (wallet?.Balance ?? 0)).ToString("N0"))đ còn thiếu)
+                            </a>
+                        }
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex flex-column gap-3">
+                        <a asp-controller="MyBookings" asp-action="Index" class="sc-btn sc-btn-secondary w-100 py-3 font-outfit text-center d-block text-decoration-none" style="font-size: 14px; border-radius: 12px;">
+                            <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách đặt sân
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <style>
+        .sc-card:hover {
+            transform: none !important;
+        }
+    </style>
+
+    <script>
+        $(document).ready(function () {
+            var bookingCodes = '@bookingCodesStr';
+            var isServicePayment = @(isServicePayment ? "true" : "false");
+
+            $('#btnPayWithWallet').click(function() {
+                var btn = $(this);
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang xử lý...');
+
+                $.ajax({
+                    url: '/Booking/PayWithWallet',
+                    type: 'POST',
+                    data: {
+                        bookingCodes: bookingCodes,
+                        isServicePayment: isServicePayment,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(res) {
+                        if (res.success) {
+                            window.location.href = res.redirectUrl;
+                        } else {
+                            alert(res.message || "Thanh toán thất bại.");
+                            btn.prop('disabled', false).html('<i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví');
+                        }
+                    },
+                    error: function() {
+                        alert("Lỗi kết nối máy chủ.");
+                        btn.prop('disabled', false).html('<i class="bi bi-shield-check"></i> Xác nhận thanh toán từ Ví');
+                    }
+                });
+            });
+        });
+    </script>
+}

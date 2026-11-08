@@ -1,0 +1,181 @@
+@model SportCourtManagement_FrontEnd.Models.Tournaments.TournamentDto
+@{
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = $"Chi tiết Giải đấu #{Model.TournamentId}";
+    bool isPending = Model.Status == "Pending";
+    bool isCancelled = Model.Status == "Cancelled";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+        <a asp-action="AdminIndex" class="btn-ghost d-inline-flex align-items-center gap-1 mb-2 text-secondary text-decoration-none">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại danh sách
+        </a>
+        <h1 class="page-title d-flex align-items-center gap-2">
+            <i class="fa-solid fa-trophy text-warning"></i> @Model.TournamentName
+            <span class="type-badge type-default">#@Model.TournamentId</span>
+        </h1>
+        <p class="page-subtitle">Người tổ chức: <strong class="text-white">@Model.CustomerName</strong> | Ngày tạo: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+            @if (isPending)
+            {
+                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.TournamentId" />
+                    <input type="hidden" name="status" value="Confirmed" />
+                    <input type="hidden" name="returnUrl" value="@Url.Action("AdminDetail", new { id = Model.TournamentId })" />
+                    <button type="submit" class="btn btn-success px-4 fw-semibold shadow-sm">
+                        <i class="fa-solid fa-check me-1"></i> Duyệt Giải Đấu
+                    </button>
+                </form>
+            }
+            @if (!isCancelled)
+            {
+                <form asp-action="UpdateStatus" method="post" class="d-inline" onsubmit="return confirm('Xác nhận hủy giải đấu này?');">
+                    <input type="hidden" name="id" value="@Model.TournamentId" />
+                    <input type="hidden" name="status" value="Cancelled" />
+                    <input type="hidden" name="cancelReason" value="Quản trị viên từ chối/hủy từ trang chi tiết" />
+                    <input type="hidden" name="returnUrl" value="@Url.Action("AdminDetail", new { id = Model.TournamentId })" />
+                    <button type="submit" class="btn btn-outline-danger px-4 fw-semibold">
+                        <i class="fa-solid fa-xmark me-1"></i> Hủy Giải
+                    </button>
+                </form>
+            }
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-success border-success">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm mb-4 bg-dark text-danger border-danger">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="stat-grid mb-4">
+    <div class="stat-card indigo">
+        <div><i class="fa-solid fa-calendar-check fa-lg" style="color: #818cf8;"></i></div>
+        <div>
+            <div class="stat-label">Số lịch đặt con</div>
+            <div class="stat-value" style="color: #a5b4fc;">@Model.Bookings.Count <span class="fs-6 fw-normal text-secondary">ca đặt</span></div>
+        </div>
+    </div>
+    <div class="stat-card emerald">
+        <div><i class="fa-solid fa-sack-dollar fa-lg text-success"></i></div>
+        <div>
+            <div class="stat-label">Tổng chi phí</div>
+            <div class="stat-value text-success">@Model.TotalAmount.ToString("N0")đ</div>
+        </div>
+    </div>
+    <div class="stat-card amber">
+        <div><i class="fa-solid fa-info-circle fa-lg text-warning"></i></div>
+        <div>
+            <div class="stat-label">Trạng thái hiện tại</div>
+            <div class="mt-1">
+                @switch (Model.Status)
+                {
+                    case "Confirmed":
+                        <span class="status-badge status-available fs-6">Đã duyệt</span>
+                        break;
+                    case "Paid":
+                        <span class="status-badge status-available fs-6" style="background-color: rgba(16,185,129,0.2); color: #10b981;">Đã thanh toán</span>
+                        break;
+                    case "Pending":
+                        <span class="status-badge status-maintenance fs-6">Chờ duyệt</span>
+                        break;
+                    case "Cancelled":
+                        <span class="status-badge status-inactive fs-6">Đã hủy</span>
+                        break;
+                    default:
+                        <span class="type-badge type-default fs-6">@Model.Status</span>
+                        break;
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Description))
+{
+    <div class="admin-card p-4 mb-4">
+        <h2 class="h6 text-white mb-2"><i class="fa-solid fa-align-left me-2 text-secondary"></i>Mô tả giải đấu / Ghi chú từ người tổ chức</h2>
+        <p class="mb-0 text-secondary">@Model.Description</p>
+    </div>
+}
+
+<div class="admin-card">
+    <div class="p-4 border-bottom border-secondary">
+        <h2 class="h6 text-white mb-0"><i class="fa-solid fa-list me-2 text-secondary"></i>Danh Sách Lịch Đặt Sân Chi Tiết (@Model.Bookings.Count đơn)</h2>
+    </div>
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Mã Booking</th>
+                <th>Sân thi đấu</th>
+                <th>Ca / Khung giờ</th>
+                <th>Ngày thi đấu</th>
+                <th>Dịch vụ đi kèm</th>
+                <th>Thành tiền</th>
+                <th>Trạng thái</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Bookings != null && Model.Bookings.Any())
+            {
+                foreach (var b in Model.Bookings)
+                {
+                    <tr>
+                        <td class="fw-bold" style="color: #60a5fa;">#@b.BookingCode</td>
+                        <td class="fw-bold text-white">@b.CourtName</td>
+                        <td>
+                            <span class="type-badge type-default">
+                                <i class="fa-regular fa-clock me-1"></i>@b.SlotName (@b.StartTime - @b.EndTime)
+                            </span>
+                        </td>
+                        <td class="text-white">@b.BookingDate.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (b.Services != null && b.Services.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var s in b.Services)
+                                    {
+                                        <span class="type-badge" style="background: rgba(255,255,255,0.05); color: #94a3b8;">
+                                            @s.ServiceName (@($"x{s.Quantity}"))
+                                        </span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-secondary small">Không sử dụng</span>
+                            }
+                        </td>
+                        <td class="fw-bold text-danger">@b.TotalAmount.ToString("N0")đ</td>
+                        <td>
+                            <span class="type-badge type-default">@b.Status</span>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-secondary">
+                        Không có lịch đặt sân nào trong giải đấu này.
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
