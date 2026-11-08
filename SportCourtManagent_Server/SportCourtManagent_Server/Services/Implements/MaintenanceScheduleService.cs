@@ -99,6 +99,7 @@ namespace SportCourtManagent_Server.Services.Implements
             {
                 throw new InvalidOperationException($"Nhân viên {staff.FullName} đang bị khóa/ngưng hoạt động.");
             }
+            await ValidateStaffAssignmentAsync(staff, complexId);
 
 
             var schedule = new MaintenanceSchedule
@@ -181,6 +182,7 @@ namespace SportCourtManagent_Server.Services.Implements
                 throw new KeyNotFoundException($"Không tìm thấy nhân viên với Id {request.AssignedStaffId.Value}");
             }
 
+            await ValidateStaffAssignmentAsync(staff, complexId);
 
             var oldStatus = schedule.Status;
             var oldCourtId = schedule.CourtId;
@@ -332,6 +334,15 @@ namespace SportCourtManagent_Server.Services.Implements
                     CourtTypeName = c.CourtType?.TypeName ?? string.Empty,
                     Status = c.Status.ToString()
                 });
+        }
+
+        private async Task ValidateStaffAssignmentAsync(User staff, int complexId)
+        {
+            if (!staff.IsActive || !staff.UserRoles.Any(role => role.Role.RoleName == "Staff"))
+                throw new ArgumentException("Nhân viên bảo trì phải có vai trò Staff và đang hoạt động.");
+
+            if (!await _staffRepository.IsStaffOfComplexAsync(staff.UserId, complexId))
+                throw new ArgumentException("Nhân viên bảo trì không thuộc cơ sở này.");
         }
 
         private MaintenanceResponse MapToResponse(MaintenanceSchedule schedule, Court? court = null, CourtComplex? complex = null, User? staff = null)

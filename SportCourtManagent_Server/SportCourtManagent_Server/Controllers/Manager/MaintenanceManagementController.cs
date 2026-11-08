@@ -41,6 +41,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -61,6 +65,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -72,6 +80,8 @@ namespace SportCourtManagent_Server.Controllers.Manager
             try
             {
                 var result = await _maintenanceService.GetMaintenanceByIdAsync(maintenanceId);
+                if (result.ComplexId != complexId)
+                    return NotFound(new { Message = "Không tìm thấy lịch bảo trì tại cơ sở này." });
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -80,6 +90,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -109,6 +123,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -129,6 +147,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -155,6 +177,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
@@ -174,6 +200,10 @@ namespace SportCourtManagent_Server.Controllers.Manager
             }
             catch (Exception ex)
             {
+                if (ex is ArgumentException)
+                    return BadRequest(new { Message = ex.Message });
+                if (ex is InvalidOperationException)
+                    return Conflict(new { Message = ex.Message });
                 return StatusCode(500, new { Message = $"Lỗi hệ thống: {ex.Message}" });
             }
         }
