@@ -86,14 +86,7 @@ namespace SportCourtManagent_Server.Services.Implements
                 throw new KeyNotFoundException($"Không tìm thấy cơ sở với Id {complexId}.");
             }
 
-            if (request.AssignedStaffId.HasValue)
-            {
-                var isStaff = await _staffRepository.IsStaffOfComplexAsync(request.AssignedStaffId.Value, complexId);
-                if (!isStaff)
-                {
-                    throw new ArgumentException("Nhân viên được gán không thuộc cơ sở này.");
-                }
-            }
+            await ValidateAssigneeAsync(complexId, request.AssignedStaffId);
 
             if (request.BookingId.HasValue)
             {
@@ -102,6 +95,8 @@ namespace SportCourtManagent_Server.Services.Implements
                 {
                     throw new KeyNotFoundException($"Không tìm thấy đơn đặt sân với Id {request.BookingId.Value}.");
                 }
+                if (booking.Court == null || booking.Court.ComplexId != complexId)
+                    throw new ArgumentException("Đơn đặt sân không thuộc cơ sở này.");
             }
 
             var task = new TaskItem
@@ -153,14 +148,13 @@ namespace SportCourtManagent_Server.Services.Implements
 
             int? oldStaffId = task.AssignedStaffId;
 
-            if (request.AssignedStaffId.HasValue && request.AssignedStaffId != oldStaffId)
-            {
-                var isStaff = await _staffRepository.IsStaffOfComplexAsync(request.AssignedStaffId.Value, complexId);
-                if (!isStaff)
-                {
-                    throw new ArgumentException("Nhân viên được gán không thuộc cơ sở này.");
-                }
-            }
+            if (task.Status is TaskItemStatus.Completed or TaskItemStatus.Approved)
+                throw new InvalidOperationException("Không thể sửa công việc đang chờ nghiệm thu hoặc đã được duyệt.");
+
+            if (request.DueDate.Value <= GetVietnamTime(DateTime.UtcNow))
+                throw new ArgumentException("Hạn hoàn thành phải ở trong tương lai.");
+
+            await ValidateAssigneeAsync(complexId, request.AssignedStaffId);
 
             if (request.BookingId.HasValue)
             {
@@ -169,6 +163,8 @@ namespace SportCourtManagent_Server.Services.Implements
                 {
                     throw new KeyNotFoundException($"Không tìm thấy đơn đặt sân với Id {request.BookingId.Value}.");
                 }
+                if (booking.Court == null || booking.Court.ComplexId != complexId)
+                    throw new ArgumentException("Đơn đặt sân không thuộc cơ sở này.");
             }
 
             task.Title = request.Title;
@@ -224,10 +220,16 @@ namespace SportCourtManagent_Server.Services.Implements
                 throw new KeyNotFoundException($"Không tìm thấy công việc với Id {taskId} thuộc cơ sở {complexId}.");
             }
 
+            if (task.Status != TaskItemStatus.Completed)
+                throw new InvalidOperationException("Chỉ nghiệm thu công việc nhân viên đã báo hoàn thành.");
+
+            if (!request.IsApproved.Value && string.IsNullOrWhiteSpace(request.Note))
+                throw new ArgumentException("Vui lòng nhập lý do yêu cầu nhân viên làm lại.");
+
             if (request.IsApproved.Value)
             {
                 task.Status = TaskItemStatus.Approved;
-                task.CompletedAt = DateTime.Now;
+                task.CompletedAt ??= GetVietnamTime(DateTime.UtcNow);
                 if (!string.IsNullOrEmpty(request.Note))
                 {
                     task.Description = $"{task.Description}. Kết quả duyệt: {request.Note}";
@@ -342,6 +344,7 @@ namespace SportCourtManagent_Server.Services.Implements
             }
 
             task.Status = TaskItemStatus.Completed;
+            task.CompletedAt = GetVietnamTime(DateTime.UtcNow);
             task.ImageProof = request.ProofImageUrl;
             task.Description = string.IsNullOrWhiteSpace(task.Description)
                 ? $"[Mô tả kết quả]: {request.ResultNote}"
@@ -352,6 +355,20 @@ namespace SportCourtManagent_Server.Services.Implements
             return MapToResponse(loadedTask);
         }
 
+
+        private async Task ValidateAssigneeAsync(int complexId, int? staffId)
+        {
+            if (!staffId.HasValue || staffId.Value <= 0)
+                throw new ArgumentException("Vui lòng chọn nhân viên thực hiện.");
+
+            var staff = await _staffRepository.GetStaffWithRolesAsync(staffId.Value);
+            if (staff == null || !staff.IsActive ||
+                !staff.UserRoles.Any(role => role.Role.RoleName == "Staff"))
+                throw new ArgumentException("Nhân viên phải có vai trò Staff và đang hoạt động.");
+
+            if (!await _staffRepository.IsStaffOfComplexAsync(staffId.Value, complexId))
+                throw new ArgumentException("Nhân viên được gán không thuộc cơ sở này.");
+        }
 
         private TaskResponse MapToResponse(TaskItem item)
         {
