@@ -86,6 +86,7 @@ namespace SportCourtManagement_FrontEnd.Controllers
 
         // POST: /staff/tasks/{taskId}/start
         [HttpPost("{taskId:int}/start")]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartTask(int taskId, [FromQuery] string? status = null, [FromQuery] int page = 1)
         {
             AttachAuthToken();

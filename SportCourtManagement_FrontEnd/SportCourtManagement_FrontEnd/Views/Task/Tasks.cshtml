@@ -203,14 +203,20 @@
                                     <button class="action-icon-btn view-detail" title="Xem chi tiết">
                                         <span class="material-symbols-outlined">visibility</span>
                                     </button>
-                                    @if (task.Status != "Approved")
+                                    @if (task.Status == "Completed")
                                     {
                                         <button class="action-icon-btn verify" title="Duyệt / Từ chối">
                                             <span class="material-symbols-outlined">how_to_reg</span>
                                         </button>
+                                    }
+                                    @if (task.Status == "Pending" || task.Status == "InProgress")
+                                    {
                                         <button class="action-icon-btn edit" title="Chỉnh sửa">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
+                                    }
+                                    @if (task.Status != "Approved")
+                                    {
                                         <button class="action-icon-btn delete" title="Xóa">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
@@ -447,7 +453,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label-custom">Ghi chú nghiệm thu / Lý do từ chối (Note)</label>
+                            <label class="form-label-custom">Ghi chú nghiệm thu / Lý do từ chối (bắt buộc khi yêu cầu làm lại)</label>
                             <textarea class="form-input-custom" name="Note" id="verifyNote" rows="3" maxlength="500" placeholder="Nhập ghi chú chi tiết kết quả nghiệm thu..."></textarea>
                         </div>
                     </div>
@@ -564,11 +570,11 @@
 
         @if (TempData["SuccessMessage"] != null)
         {
-            <text>showToast('@Html.Raw(TempData["SuccessMessage"])', 'success');</text>
+            <text>showToast(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"]?.ToString())), 'success');</text>
         }
         @if (TempData["ErrorMessage"] != null)
         {
-            <text>showToast('@Html.Raw(TempData["ErrorMessage"])', 'error');</text>
+            <text>showToast(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["ErrorMessage"]?.ToString())), 'error');</text>
         }
 
         // Search & Filter Logic

@@ -239,7 +239,18 @@ namespace SportCourtManagement_FrontEnd.Controllers
             }
             else
             {
-                TempData["ErrorMessage"] = $"Không thể xác nhận công việc. Lỗi: {response.StatusCode}";
+                var rawError = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    using var document = JsonDocument.Parse(rawError);
+                    TempData["ErrorMessage"] = document.RootElement.TryGetProperty("message", out var message)
+                        ? message.GetString()
+                        : "Không thể nghiệm thu công việc. Vui lòng thử lại.";
+                }
+                catch (JsonException)
+                {
+                    TempData["ErrorMessage"] = "Không thể nghiệm thu công việc. Vui lòng thử lại.";
+                }
             }
 
             return RedirectToAction(nameof(Tasks));
