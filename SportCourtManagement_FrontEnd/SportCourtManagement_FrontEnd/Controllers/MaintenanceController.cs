@@ -139,6 +139,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
 
 
         // ── POST: /manager/maintenance/create ─────────────────────────────────────────
+        /// <summary>
+        /// Tạo lịch bảo trì sân thể thao mới (Maintenance Scheduling)
+        /// Hệ thống khóa khung giờ sân và giải quyết các booking bị trùng thời gian bảo trì
+        /// </summary>
         [HttpPost("create")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateMaintenance(CreateMaintenanceRequest model)

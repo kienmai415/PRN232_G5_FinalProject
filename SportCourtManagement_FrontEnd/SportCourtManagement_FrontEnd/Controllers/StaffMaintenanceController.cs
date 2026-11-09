@@ -129,6 +129,10 @@ namespace SportCourtManagement_FrontEnd.Controllers
 
 
         // ── POST: /staff/maintenance/{id}/start ───────────────────
+        /// <summary>
+        /// Nhân viên kỹ thuật bắt đầu thực hiện lịch bảo trì (chuyển sang InProgress)
+        /// Cập nhật trạng thái sân thành Maintenance trong suốt quá trình bảo trì
+        /// </summary>
         [HttpPost("{id:int}/start")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartMaintenance(
