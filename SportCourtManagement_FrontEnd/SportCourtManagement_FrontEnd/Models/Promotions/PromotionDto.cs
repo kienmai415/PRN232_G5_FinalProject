@@ -53,10 +53,10 @@ public class PromotionFormDto : IValidatableObject
   [Range(0, 1000000000, ErrorMessage = "Đơn tối thiểu không được âm")]
   public decimal MinOrderAmount { get; set; }
 
-  [Range(0.01, 1000000000, ErrorMessage = "Số tiền giảm tối đa phải lớn hơn 0")]
+  [Range(0, 1000000000, ErrorMessage = "Số tiền giảm tối đa không được âm")]
   public decimal? MaxDiscount { get; set; }
 
-  [Range(1, int.MaxValue, ErrorMessage = "Giới hạn sử dụng phải từ 1 lượt trở lên")]
+  [Range(0, int.MaxValue, ErrorMessage = "Giới hạn sử dụng không được âm")]
   public int? UsageLimit { get; set; }
 
   public DateTime StartDate { get; set; } = DateTime.Today;
@@ -84,4 +84,22 @@ public class PromotionListViewModel
   public PagedResult<PromotionDto> PagedData { get; set; } = new();
   public string? Keyword { get; set; }
   public bool? IsActive { get; set; }
+}
+
+public class ValidateCouponResultDto
+{
+  public bool Valid { get; set; }
+  public string? PromoCode { get; set; }
+  public string? PromoName { get; set; }
+  public string? DiscountType { get; set; }
+  public decimal DiscountValue { get; set; }
+  public decimal DiscountAmount { get; set; }
+  public decimal FinalAmount { get; set; }
+  public string? Message { get; set; }
+}
+
+public class ValidateCouponRequestModel
+{
+  public string PromoCode { get; set; } = string.Empty;
+  public decimal OrderAmount { get; set; }
 }

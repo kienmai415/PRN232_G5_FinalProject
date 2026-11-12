@@ -6,6 +6,11 @@
 
     if (!modalEl || !modalBody) return;
 
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap 5 không được tải đúng cách.');
+        return;
+    }
+
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     const baseUrl = '/Admin/Complexes';
     const maxImageSize = 5 * 1024 * 1024;
@@ -206,7 +211,7 @@
             const messages = errors[key];
             if (!messages || !messages.length) return;
 
-            const input = form.querySelector('[name="' + key + '"]');
+            const input = form.querySelector('[name="' + key + '" i]');
             if (input) input.classList.add('is-invalid');
 
             const fieldError = input?.closest('.mb-3')?.querySelector('.field-error');

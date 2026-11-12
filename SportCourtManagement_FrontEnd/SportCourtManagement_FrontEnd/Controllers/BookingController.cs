@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using SportCourtManagement_FrontEnd.Models.Bookings;
 using SportCourtManagement_FrontEnd.Models.Courts;
+using SportCourtManagement_FrontEnd.Models.Promotions;
 using SportCourtManagement_FrontEnd.Models.Services;
 using SportCourtManagement_FrontEnd.Models.ViewModels;
 using SportCourtManagement_FrontEnd.Services;
@@ -945,6 +946,19 @@ namespace SportCourtManagement_FrontEnd.Controllers
             {
                 _logger.LogError(ex, "Error in ApplyServicePaymentOverrideAsync");
             }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> ValidateCoupon([FromBody] ValidateCouponRequestModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.PromoCode))
+            {
+                return Json(new { valid = false, message = "Vui lòng nhập mã ưu đãi." });
+            }
+
+            var result = await _apiService.ValidateCouponAsync(model.PromoCode, model.OrderAmount);
+            return Json(result);
         }
 
         private string? GetToken()

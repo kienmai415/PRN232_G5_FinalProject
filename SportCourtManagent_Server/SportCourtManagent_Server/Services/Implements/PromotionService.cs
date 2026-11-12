@@ -84,12 +84,15 @@ namespace SportCourtManagent_Server.Services.Implements
     {
       if (request == null) throw new ArgumentNullException(nameof(request));
 
+      if (request.MaxDiscount.HasValue && request.MaxDiscount.Value <= 0) request.MaxDiscount = null;
+      if (request.UsageLimit.HasValue && request.UsageLimit.Value <= 0) request.UsageLimit = null;
+
       ValidatePromotionRules(request.DiscountType, request.DiscountValue, request.MinOrderAmount, request.MaxDiscount, request.UsageLimit, request.StartDate, request.EndDate);
 
       var existing = await _promoRepo.GetByCodeAsync(request.PromoCode);
       if (existing != null)
       {
-        throw new InvalidOperationException($"Promotion code {request.PromoCode} already exists.");
+        throw new InvalidOperationException($"Mã khuyến mãi '{request.PromoCode}' đã tồn tại trong hệ thống.");
       }
 
       var promo = new Promotion
@@ -118,6 +121,9 @@ namespace SportCourtManagent_Server.Services.Implements
     public async Task<PromotionDto?> UpdatePromotionAsync(int id, UpdatePromotionRequest request)
     {
       if (request == null) throw new ArgumentNullException(nameof(request));
+
+      if (request.MaxDiscount.HasValue && request.MaxDiscount.Value <= 0) request.MaxDiscount = null;
+      if (request.UsageLimit.HasValue && request.UsageLimit.Value <= 0) request.UsageLimit = null;
 
       ValidatePromotionRules(request.DiscountType, request.DiscountValue, request.MinOrderAmount, request.MaxDiscount, request.UsageLimit, request.StartDate, request.EndDate);
 
@@ -168,8 +174,8 @@ namespace SportCourtManagent_Server.Services.Implements
     /// <summary>Helper method to calculate discount amount.</summary>
     private static ValidateCouponResponse CalculateCouponDiscount(Promotion promo, decimal orderAmount)
     {
-      var now = DateTime.UtcNow;
-      if (!promo.IsActive || now < promo.StartDate || now > promo.EndDate)
+      var today = DateTime.Now.Date;
+      if (!promo.IsActive || today < promo.StartDate.Date || today > promo.EndDate.Date)
       {
         return new ValidateCouponResponse { Valid = false, Message = "Mã giảm giá đã hết hạn hoặc đang bị khóa." };
       }

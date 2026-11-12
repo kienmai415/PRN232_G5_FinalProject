@@ -48,15 +48,26 @@ public class PromotionsController : Controller
   {
     if (!ModelState.IsValid) return View(form);
 
-    var created = await _apiService.CreatePromotionAsync(form);
-    if (created == null)
+    try
     {
-      ModelState.AddModelError("", "Tạo khuyến mãi thất bại hoặc mã đã tồn tại.");
+      if (form.MaxDiscount.HasValue && form.MaxDiscount.Value <= 0) form.MaxDiscount = null;
+      if (form.UsageLimit.HasValue && form.UsageLimit.Value <= 0) form.UsageLimit = null;
+
+      var created = await _apiService.CreatePromotionAsync(form);
+      if (created == null)
+      {
+        ModelState.AddModelError("", "Tạo khuyến mãi thất bại hoặc mã đã tồn tại.");
+        return View(form);
+      }
+
+      TempData["SuccessMessage"] = "Tạo chương trình khuyến mãi thành công!";
+      return RedirectToAction(nameof(Index));
+    }
+    catch (Exception ex)
+    {
+      ModelState.AddModelError("", ex.Message);
       return View(form);
     }
-
-    TempData["SuccessMessage"] = "Tạo chương trình khuyến mãi thành công!";
-    return RedirectToAction(nameof(Index));
   }
 
   // GET: /Promotions/Edit/5
@@ -94,15 +105,26 @@ public class PromotionsController : Controller
   {
     if (!ModelState.IsValid) return View(form);
 
-    var updated = await _apiService.UpdatePromotionAsync(id, form);
-    if (updated == null)
+    try
     {
-      ModelState.AddModelError("", "Cập nhật thất bại.");
+      if (form.MaxDiscount.HasValue && form.MaxDiscount.Value <= 0) form.MaxDiscount = null;
+      if (form.UsageLimit.HasValue && form.UsageLimit.Value <= 0) form.UsageLimit = null;
+
+      var updated = await _apiService.UpdatePromotionAsync(id, form);
+      if (updated == null)
+      {
+        ModelState.AddModelError("", "Cập nhật thất bại.");
+        return View(form);
+      }
+
+      TempData["SuccessMessage"] = "Cập nhật khuyến mãi thành công!";
+      return RedirectToAction(nameof(Index));
+    }
+    catch (Exception ex)
+    {
+      ModelState.AddModelError("", ex.Message);
       return View(form);
     }
-
-    TempData["SuccessMessage"] = "Cập nhật khuyến mãi thành công!";
-    return RedirectToAction(nameof(Index));
   }
 
   // POST: /Promotions/Delete/5

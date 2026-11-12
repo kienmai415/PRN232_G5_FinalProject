@@ -52,14 +52,11 @@ namespace SportCourtManagent_Server.DataAccess.Implementation
 
         public Promotion? GetByCode(string code)
         {
+            if (string.IsNullOrWhiteSpace(code)) return null;
             try
             {
-                var promotion = _context.Promotions.FirstOrDefault(p => p.PromoCode.Equals(code, StringComparison.OrdinalIgnoreCase));
-                if (promotion == null)
-                {
-                    return null;
-                }
-                return promotion;
+                var upperCode = code.Trim().ToUpper();
+                return _context.Promotions.FirstOrDefault(p => p.PromoCode == upperCode);
             }
             catch (Exception ex)
             {

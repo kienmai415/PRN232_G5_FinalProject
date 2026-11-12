@@ -7,6 +7,9 @@ $(document).ready(function () {
     let racketPrice = 30000;
     let drinkPrice = 15000;
     let discountPercent = 0;
+    let appliedDiscountAmount = 0;
+    let appliedDiscountType = '';
+    let appliedDiscountValue = 0;
     let computedDates = [];
     let checkedDatesAvailability = []; // { date: 'YYYY-MM-DD', status: 'Available'|'Booked' }
 
@@ -23,24 +26,74 @@ $(document).ready(function () {
     };
 
     // === 2. Promo Code Application ===
-    window.applyPromo = function () {
+    window.applyPromo = async function () {
         const promo = $('#promo-input').val().trim();
         const msg = $('#promo-msg');
         const row = $('#discount-row');
         
-        if (promo.toUpperCase() === 'DISCOUNT10') {
-            discountPercent = 0.10;
-            msg.show().removeClass('text-danger').addClass('text-sc-green').text('Áp dụng mã ưu đãi DISCOUNT10 thành công (Giảm 10%)!');
-            row.css('display', 'flex');
-        } else if (promo === '') {
+        if (!promo) {
+            appliedDiscountAmount = 0;
+            appliedDiscountType = '';
+            appliedDiscountValue = 0;
             discountPercent = 0;
             msg.hide();
             row.css('display', 'none');
-        } else {
+            updateSummary();
+            return;
+        }
+
+        const isRec = $('input[name="isRecurring"]:checked').val() === 'true';
+        let sessionsCount = isRec ? (computedDates.length || 1) : 1;
+        let servicesTotal = 0;
+        if (!isRec) {
+            const racketQty = parseInt($('#racketQty').val()) || 0;
+            const drinkQty = parseInt($('#drinkQty').val()) || 0;
+            servicesTotal = (racketQty * racketPrice) + (drinkQty * drinkPrice);
+        }
+        const currentSubtotal = (slotPrice * sessionsCount) + servicesTotal;
+
+        msg.show().removeClass('text-danger text-sc-green').addClass('text-sc-muted').text('Đang kiểm tra mã...');
+
+        try {
+            const res = await fetch('/Booking/ValidateCoupon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ promoCode: promo, orderAmount: currentSubtotal })
+            });
+            const data = await res.json();
+
+            if (data.valid) {
+                appliedDiscountAmount = data.discountAmount || 0;
+                appliedDiscountType = data.discountType || '';
+                appliedDiscountValue = data.discountValue || 0;
+                if (appliedDiscountType === 'Percent') {
+                    discountPercent = (data.discountValue || 0) / 100;
+                } else {
+                    discountPercent = 0;
+                }
+
+                msg.show().removeClass('text-danger text-sc-muted').addClass('text-sc-green')
+                    .html(`<i class="bi bi-check-circle-fill me-1"></i> Áp dụng thành công mã <strong>${data.promoCode || promo}</strong>: Giảm ${appliedDiscountAmount.toLocaleString('vi-VN')}đ!`);
+                row.css('display', 'flex');
+            } else {
+                appliedDiscountAmount = 0;
+                appliedDiscountType = '';
+                appliedDiscountValue = 0;
+                discountPercent = 0;
+                msg.show().removeClass('text-sc-green text-sc-muted').addClass('text-danger')
+                    .html(`<i class="bi bi-x-circle-fill me-1"></i> ${data.message || 'Mã ưu đãi không hợp lệ.'}`);
+                row.css('display', 'none');
+            }
+        } catch (err) {
+            appliedDiscountAmount = 0;
+            appliedDiscountType = '';
+            appliedDiscountValue = 0;
             discountPercent = 0;
-            msg.show().removeClass('text-sc-green').addClass('text-danger').text('Mã ưu đãi không hợp lệ.');
+            msg.show().removeClass('text-sc-green text-sc-muted').addClass('text-danger')
+                .text('Không thể kiểm tra mã ưu đãi lúc này.');
             row.css('display', 'none');
         }
+
         updateSummary();
     };
 
@@ -149,8 +202,18 @@ $(document).ready(function () {
 
         const baseCourtPrice = slotPrice * sessionsCount;
         const subtotal = baseCourtPrice + servicesTotal;
-        const discountTotal = subtotal * discountPercent;
-        const grandTotal = subtotal - discountTotal;
+        let discountTotal = 0;
+        if (appliedDiscountAmount > 0) {
+            if (appliedDiscountType === 'Percent') {
+                discountTotal = subtotal * (appliedDiscountValue / 100);
+            } else {
+                discountTotal = appliedDiscountAmount;
+            }
+        } else if (discountPercent > 0) {
+            discountTotal = subtotal * discountPercent;
+        }
+        if (discountTotal > subtotal) discountTotal = subtotal;
+        const grandTotal = Math.max(0, subtotal - discountTotal);
 
         // Update sidebar labels
         $('#sessions-count-lbl').text(isRec ? ` (${sessionsCount} buổi)` : '');
@@ -307,8 +370,18 @@ $(document).ready(function () {
         // Update totals based on actual valid bookings
         const actualBookedCount = validCount;
         const totalEstimated = actualBookedCount * slotPrice;
-        const discountTotal = totalEstimated * discountPercent;
-        const grandTotal = totalEstimated - discountTotal;
+        let discountTotal = 0;
+        if (appliedDiscountAmount > 0) {
+            if (appliedDiscountType === 'Percent') {
+                discountTotal = totalEstimated * (appliedDiscountValue / 100);
+            } else {
+                discountTotal = appliedDiscountAmount;
+            }
+        } else if (discountPercent > 0) {
+            discountTotal = totalEstimated * discountPercent;
+        }
+        if (discountTotal > totalEstimated) discountTotal = totalEstimated;
+        const grandTotal = Math.max(0, totalEstimated - discountTotal);
 
         // Recalculate sidebar for recurring booking taking conflicts into account
         $('#sessions-count-lbl').text(` (${actualBookedCount} buổi được đặt)`);
