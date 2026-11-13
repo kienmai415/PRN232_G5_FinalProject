@@ -21,6 +21,7 @@ public class CourtDetailDto
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 
+    public int CourtTypeId => CourtType?.CourtTypeId ?? 0;
     public CourtTypeDto CourtType { get; set; } = null!;
     public List<CourtImageDto> Images { get; set; } = new();
     public List<CourtPricingDto> Pricings { get; set; } = new();

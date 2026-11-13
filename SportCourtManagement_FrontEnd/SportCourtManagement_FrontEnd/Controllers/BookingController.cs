@@ -25,22 +25,88 @@ namespace SportCourtManagement_FrontEnd.Controllers
             _logger = logger;
         }
 
-        // GET: /Booking?courtId=1&date=2026-07-12&slotId=3
+        // GET: /Booking?courtId=1&date=2026-07-12&slotId=3&courtTypeId=5
         [HttpGet]
-        public async Task<IActionResult> Index(int? courtId, string? date, int? slotId)
+        public async Task<IActionResult> Index(int? courtId, string? date, int? slotId, int? courtTypeId)
         {
-            // Load courts list
-            var courtsResult = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams
-            {
-                PageNumber = 1,
-                PageSize = 50,
-                Status = "Active"
-            });
+            // 1. Load Court Types
+            var courtTypes = await _apiService.GetCourtTypesAsync();
 
-            // Load time slots
+            CourtDetailDto? preselectedCourt = null;
+            if (courtId.HasValue && courtId.Value > 0)
+            {
+                preselectedCourt = await _apiService.GetCourtDetailAsync(courtId.Value);
+                if (preselectedCourt != null)
+                {
+                    courtTypeId ??= preselectedCourt.CourtTypeId;
+                }
+            }
+
+            // 2. Load courts list
+            var courts = new List<CourtListDto>();
+            if (courtTypeId.HasValue && courtTypeId.Value > 0)
+            {
+                var courtsResult = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams
+                {
+                    PageNumber = 1,
+                    PageSize = 50,
+                    CourtTypeId = courtTypeId.Value
+                });
+                if (courtsResult?.Items != null)
+                {
+                    courts = courtsResult.Items.ToList();
+                }
+            }
+            else
+            {
+                // Fetch diverse courts across all available court types sequentially
+                courts = new List<CourtListDto>();
+                foreach (var ct in courtTypes)
+                {
+                    var res = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams
+                    {
+                        PageNumber = 1,
+                        PageSize = 10,
+                        CourtTypeId = ct.CourtTypeId
+                    });
+                    if (res?.Items != null && res.Items.Any())
+                    {
+                        courts.AddRange(res.Items);
+                    }
+                }
+
+                if (!courts.Any())
+                {
+                    var fallbackResult = await _apiService.SearchCourtsAsync(new Models.Courts.CourtSearchParams
+                    {
+                        PageNumber = 1,
+                        PageSize = 50
+                    });
+                    courts = fallbackResult?.Items?.ToList() ?? new();
+                }
+            }
+
+            // 3. Ensure preselected court is always in the list
+            if (preselectedCourt != null && !courts.Any(c => c.CourtId == preselectedCourt.CourtId))
+            {
+                courts.Insert(0, new CourtListDto
+                {
+                    CourtId = preselectedCourt.CourtId,
+                    CourtName = preselectedCourt.CourtName,
+                    CourtCode = preselectedCourt.CourtCode,
+                    CourtTypeId = preselectedCourt.CourtTypeId,
+                    CourtTypeName = preselectedCourt.CourtType?.TypeName ?? "",
+                    Location = preselectedCourt.Location,
+                    ImageUrl = preselectedCourt.ImageUrl,
+                    PricePerHour = preselectedCourt.PricePerHour,
+                    Status = preselectedCourt.Status
+                });
+            }
+
+            // 4. Load time slots
             var timeSlots = await _apiService.GetTimeSlotsAsync();
 
-            // Load services: Filter by CourtId if selected
+            // 5. Load services: Filter by CourtId if selected
             List<ServiceDto> services = new();
             if (courtId.HasValue && courtId.Value > 0)
             {
@@ -59,15 +125,34 @@ namespace SportCourtManagement_FrontEnd.Controllers
 
             var viewModel = new SingularBookingViewModel
             {
-                Courts = courtsResult.Items?.ToList() ?? new(),
+                Courts = courts,
                 TimeSlots = timeSlots,
                 Services = services,
                 SelectedCourtId = courtId,
                 SelectedDate = selectedDate,
-                SelectedSlotId = slotId
+                SelectedSlotId = slotId,
+                CourtTypes = courtTypes,
+                SelectedCourtTypeId = courtTypeId
             };
 
             return View(viewModel);
+        }
+
+        // AJAX: /Booking/GetCourtsByType?courtTypeId=5
+        [HttpGet]
+        public async Task<IActionResult> GetCourtsByType(int? courtTypeId)
+        {
+            var searchParams = new Models.Courts.CourtSearchParams
+            {
+                PageNumber = 1,
+                PageSize = 50
+            };
+            if (courtTypeId.HasValue && courtTypeId.Value > 0)
+            {
+                searchParams.CourtTypeId = courtTypeId.Value;
+            }
+            var result = await _apiService.SearchCourtsAsync(searchParams);
+            return Json(new { success = true, courts = result?.Items ?? new List<CourtListDto>() });
         }
 
         // AJAX: /Booking/GetSlotAvailability?courtId=1&date=2026-07-12

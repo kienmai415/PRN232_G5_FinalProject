@@ -427,7 +427,7 @@ public class AccountController(IAuthService authService, IOptions<ApiSettings> a
         {
             "Admin" => RedirectToAction("Index", "Dashboard", new { area = "Admin" }),
             "Staff" or "Coach" => RedirectToAction("Index", "StaffSchedule"),
-            "Manager" => RedirectToAction("Shifts", "Manager"),
+            "Manager" => RedirectToAction("Dashboard", "Manager"),
             _ => RedirectToAction("Index", "Home"),
         };
     }

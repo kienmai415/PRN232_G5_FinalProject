@@ -32,28 +32,38 @@
             <input asp-for="Phone" class="form-control" placeholder="024 xxxx xxxx" />
         </div>
         <div class="mb-3">
-            <label asp-for="ManagerId" class="form-label">Quản lý phụ trách</label>
+            <label asp-for="ManagerId" class="form-label">Quản lý phụ trách <span class="text-danger">*</span></label>
             <select asp-for="ManagerId" class="form-select">
                 <option value="">-- Chọn quản lý --</option>
                 @foreach (var m in Model.Managers)
                 {
-                    <option value="@m.UserId">#@m.UserId — @m.FullName (@m.Email)</option>
+                    <option value="@m.UserId">@m.FullName — @m.Email (@m.Role)</option>
                 }
             </select>
+            <span asp-validation-for="ManagerId" class="text-danger small"></span>
         </div>
         <div class="mb-3">
-            <label class="form-label">Loại sân cung cấp</label>
-            <div class="d-flex flex-wrap gap-2">
+            <label class="form-label d-flex align-items-center justify-content-between mb-2">
+                <span>Loại sân thể thao cung cấp</span>
+                <small class="text-secondary fw-normal">Chọn các môn thể thao có tại tổ hợp</small>
+            </label>
+            <div class="row g-2">
                 @foreach (var t in Model.CourtTypeOptions)
                 {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="CourtTypeIds" value="@t.CourtTypeId"
-                               id="type_@t.CourtTypeId" @(Model.CourtTypeIds.Contains(t.CourtTypeId) ? "checked" : "") />
-                        <label class="form-check-label text-secondary small" for="type_@t.CourtTypeId">@t.TypeName</label>
+                    var isChecked = Model.CourtTypeIds != null && Model.CourtTypeIds.Contains(t.CourtTypeId);
+                    <div class="col-6 col-sm-4">
+                        <label class="form-check p-2 bg-dark border border-secondary rounded d-flex align-items-center gap-2 m-0" for="type_@t.CourtTypeId" style="cursor:pointer;">
+                            <input class="form-check-input mt-0 ms-1" type="checkbox" name="CourtTypeIds" value="@t.CourtTypeId"
+                                   id="type_@t.CourtTypeId" @(isChecked ? "checked" : "") />
+                            <span class="text-white small fw-medium">@t.TypeName</span>
+                        </label>
                     </div>
                 }
             </div>
-        </div>
+            <div class="form-text text-secondary small mt-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-info me-1"></i>
+                Hệ thống sẽ tự động khởi tạo sân thể thao tiêu chuẩn và khung giá tương ứng cho các môn được chọn.
+            </div>
         <div class="mb-3">
             <label asp-for="Description" class="form-label"></label>
             <textarea asp-for="Description" class="form-control" rows="3" placeholder="Mô tả ngắn..."></textarea>

@@ -204,6 +204,10 @@
                 return { prefix: 'PI', example: 'PI0001', name: 'Pickleball' };
             } else if (selectedText.includes('cầu lông') || selectedText.includes('badminton')) {
                 return { prefix: 'BA', example: 'BA0001', name: 'Cầu lông' };
+            } else if (selectedText.includes('tennis')) {
+                return { prefix: 'TN', example: 'TN0001', name: 'Tennis' };
+            } else if (selectedText.includes('bóng rổ') || selectedText.includes('basketball')) {
+                return { prefix: 'BR', example: 'BR0001', name: 'Bóng rổ' };
             } else {
                 return { prefix: 'XX', example: 'XX0001', name: 'Khác' };
             }

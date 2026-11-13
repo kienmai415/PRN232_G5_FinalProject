@@ -22,10 +22,12 @@ public class HomeController : Controller
         if (User.Identity?.IsAuthenticated == true)
         {
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (role is "Admin" or "Staff" or "Coach")
+            if (role is "Admin")
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
             if (role is "Manager")
-                return RedirectToAction("Shifts", "Manager");
+                return RedirectToAction("Dashboard", "Manager");
+            if (role is "Staff" or "Coach")
+                return RedirectToAction("Index", "StaffSchedule");
         }
 
         var activePromotions = await _apiService.GetActivePromotionsAsync();

@@ -27,7 +27,7 @@
         <input asp-for="Phone" class="form-control" placeholder="024 xxxx xxxx" />
     </div>
     <div class="mb-3">
-        <label asp-for="ManagerId" class="form-label">Quản lý phụ trách</label>
+        <label asp-for="ManagerId" class="form-label">Quản lý phụ trách <span class="text-danger">*</span></label>
         <select asp-for="ManagerId" class="form-select">
             <option value="">-- Chọn quản lý --</option>
             @foreach (var m in Model.Managers)
@@ -38,14 +38,37 @@
         <span asp-validation-for="ManagerId" class="text-danger small field-error"></span>
         @if (!Model.Managers.Any())
         {
-            <div class="form-text text-warning small">Chưa có tài khoản Staff (quản lý) trong hệ thống.</div>
+            <div class="form-text text-warning small">Chưa có tài khoản Quản lý (Manager) trong hệ thống.</div>
         }
     </div>
-    <div class="mb-3 alert alert-secondary border-secondary bg-dark py-2 px-3 small">
-        <i class="fa-solid fa-circle-info text-info me-1"></i>
-        <span class="text-secondary">
-            Loại sân cung cấp sẽ được <strong>hệ thống tự động xác định</strong> dựa trên danh sách các sân (Courts) cụ thể được thêm vào tổ hợp này.
-        </span>
+    <div class="mb-3">
+        <label class="form-label d-flex align-items-center justify-content-between mb-2">
+            <span>Loại sân thể thao cung cấp</span>
+            <small class="text-secondary fw-normal">Chọn các môn thể thao có tại tổ hợp</small>
+        </label>
+        @if (Model.CourtTypeOptions != null && Model.CourtTypeOptions.Any())
+        {
+            <div class="row g-2">
+                @foreach (var type in Model.CourtTypeOptions)
+                {
+                    var isChecked = Model.CourtTypeIds != null && Model.CourtTypeIds.Contains(type.CourtTypeId);
+                    <div class="col-6 col-sm-4">
+                        <label class="form-check p-2 bg-dark border border-secondary rounded d-flex align-items-center gap-2 m-0" for="modal_ct_@type.CourtTypeId" style="cursor:pointer;">
+                            <input class="form-check-input mt-0 ms-1" type="checkbox" name="CourtTypeIds" value="@type.CourtTypeId" id="modal_ct_@type.CourtTypeId" @(isChecked ? "checked" : "") />
+                            <span class="text-white small fw-medium">@type.TypeName</span>
+                        </label>
+                    </div>
+                }
+            </div>
+            <div class="form-text text-secondary small mt-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-info me-1"></i>
+                Hệ thống sẽ tự động khởi tạo sân thể thao tiêu chuẩn và khung giá tương ứng cho các môn được chọn.
+            </div>
+        }
+        else
+        {
+            <div class="text-secondary small">Chưa có danh mục loại sân trong hệ thống.</div>
+        }
     </div>
     <div class="mb-3">
         <label asp-for="Description" class="form-label"></label>

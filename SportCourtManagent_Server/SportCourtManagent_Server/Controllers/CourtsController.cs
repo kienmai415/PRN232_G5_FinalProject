@@ -200,19 +200,23 @@ namespace SportCourtManagent_Server.Controllers
                 string name = serviceName.ToLower();
                 if (typeName.Contains("cầu lông", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (name.Contains("pickleball") || name.Contains("tennis") || name.Contains("bóng đá")) return false;
+                    if (name.Contains("pickleball") || name.Contains("tennis") || name.Contains("bóng đá") || name.Contains("bóng rổ")) return false;
                 }
                 else if (typeName.Contains("pickleball", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (name.Contains("cầu lông") || name.Contains("tennis") || name.Contains("bóng đá")) return false;
+                    if (name.Contains("cầu lông") || name.Contains("tennis") || name.Contains("bóng đá") || name.Contains("bóng rổ")) return false;
                 }
                 else if (typeName.Contains("tennis", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (name.Contains("cầu lông") || name.Contains("pickleball") || name.Contains("bóng đá")) return false;
+                    if (name.Contains("cầu lông") || name.Contains("pickleball") || name.Contains("bóng đá") || name.Contains("bóng rổ")) return false;
                 }
                 else if (typeName.Contains("bóng đá", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (name.Contains("cầu lông") || name.Contains("pickleball") || name.Contains("tennis") || name.Contains("vợt")) return false;
+                    if (name.Contains("cầu lông") || name.Contains("pickleball") || name.Contains("tennis") || name.Contains("vợt") || name.Contains("bóng rổ")) return false;
+                }
+                else if (typeName.Contains("bóng rổ", StringComparison.OrdinalIgnoreCase) || typeName.Contains("basketball", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (name.Contains("cầu lông") || name.Contains("pickleball") || name.Contains("tennis") || name.Contains("vợt") || name.Contains("bóng đá")) return false;
                 }
                 return true;
             }

@@ -160,6 +160,20 @@
                         Thiết Lập Đơn Đặt Sân Lẻ
                     </h4>
 
+                    <!-- Sport / Court Type Filter -->
+                    <div class="mb-3">
+                        <label class="form-label text-sc-muted font-inter" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <i class="bi bi-funnel me-1 text-sc-blue-light"></i>Lọc theo môn thể thao
+                        </label>
+                        <select id="court-type-filter" class="sc-input py-2" style="color-scheme: dark;">
+                            <option value="">-- Tất cả môn thể thao --</option>
+                            @foreach (var ct in Model.CourtTypes)
+                            {
+                                <option value="@ct.CourtTypeId" selected="@(Model.SelectedCourtTypeId == ct.CourtTypeId)">@ct.TypeName</option>
+                            }
+                        </select>
+                    </div>
+
                     <!-- Court Selection -->
                     <div class="mb-4">
                         <label class="form-label text-sc-muted font-inter" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -363,6 +377,20 @@
                             <h4 class="font-outfit text-white mb-4" style="font-weight: 800; border-left: 4px solid var(--sc-amber); padding-left: 12px;">
                                 Thiết Lập Đặt Sân Định Kỳ (Theo Tuần)
                             </h4>
+
+                            <!-- Sport / Court Type Filter for Recurring -->
+                            <div class="mb-3">
+                                <label class="form-label text-sc-muted font-inter" style="font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                                    <i class="bi bi-funnel me-1 text-sc-amber"></i>Lọc theo môn thể thao
+                                </label>
+                                <select id="rec-court-type-filter" class="sc-input py-2" style="color-scheme: dark;">
+                                    <option value="">-- Tất cả môn thể thao --</option>
+                                    @foreach (var ct in Model.CourtTypes)
+                                    {
+                                        <option value="@ct.CourtTypeId" selected="@(Model.SelectedCourtTypeId == ct.CourtTypeId)">@ct.TypeName</option>
+                                    }
+                                </select>
+                            </div>
 
                             <!-- Court Selection -->
                             <div class="mb-4">
@@ -817,6 +845,42 @@
             });
             updateCourtPreview();
 
+            // Filter courts dynamically by sport / court type
+            $('#court-type-filter').on('change', function () {
+                const selectedTypeId = $(this).val();
+                $.ajax({
+                    url: '/Booking/GetCourtsByType',
+                    type: 'GET',
+                    data: { courtTypeId: selectedTypeId },
+                    success: function (res) {
+                        courtSelect.empty();
+                        courtSelect.append('<option value="">-- Chọn sân --</option>');
+                        if (res.success && res.courts && res.courts.length > 0) {
+                            res.courts.forEach(function (c) {
+                                const courtId = c.courtId !== undefined ? c.courtId : c.CourtId;
+                                const courtName = c.courtName !== undefined ? c.courtName : c.CourtName;
+                                const courtTypeName = c.courtTypeName !== undefined ? c.courtTypeName : c.CourtTypeName;
+                                const location = c.location !== undefined ? c.location : (c.Location || 'N/A');
+                                const imageUrl = c.imageUrl !== undefined ? c.imageUrl : c.ImageUrl;
+                                const pricePerHour = c.pricePerHour !== undefined ? c.pricePerHour : c.PricePerHour;
+
+                                courtSelect.append(`
+                                    <option value="${courtId}"
+                                            data-name="${courtName}"
+                                            data-type="${courtTypeName}"
+                                            data-location="${location}"
+                                            data-image="${imageUrl || ''}"
+                                            data-price="${pricePerHour}">
+                                        ${courtName} — ${courtTypeName} (${location})
+                                    </option>
+                                `);
+                            });
+                        }
+                        courtSelect.trigger('change');
+                    }
+                });
+            });
+
             // Load Services by Court ID
             function loadCourtServices() {
                 const courtId = courtSelect.val();
@@ -1267,6 +1331,35 @@
             recCourtSelect.on('change', function () {
                 loadRecSlotAvailability();
                 updateRecSummary();
+            });
+
+            // Filter recurring courts dynamically by sport / court type
+            $('#rec-court-type-filter').on('change', function () {
+                const selectedTypeId = $(this).val();
+                $.ajax({
+                    url: '/Booking/GetCourtsByType',
+                    type: 'GET',
+                    data: { courtTypeId: selectedTypeId },
+                    success: function (res) {
+                        recCourtSelect.empty();
+                        recCourtSelect.append('<option value="">-- Chọn sân --</option>');
+                        if (res.success && res.courts && res.courts.length > 0) {
+                            res.courts.forEach(function (c) {
+                                const courtId = c.courtId !== undefined ? c.courtId : c.CourtId;
+                                const courtName = c.courtName !== undefined ? c.courtName : c.CourtName;
+                                const courtTypeName = c.courtTypeName !== undefined ? c.courtTypeName : c.CourtTypeName;
+                                const pricePerHour = c.pricePerHour !== undefined ? c.pricePerHour : c.PricePerHour;
+
+                                recCourtSelect.append(`
+                                    <option value="${courtId}" data-price="${pricePerHour}">
+                                        ${courtName} — ${courtTypeName}
+                                    </option>
+                                `);
+                            });
+                        }
+                        recCourtSelect.trigger('change');
+                    }
+                });
             });
 
             recStartDate.add(recEndDate).on('change', function () {

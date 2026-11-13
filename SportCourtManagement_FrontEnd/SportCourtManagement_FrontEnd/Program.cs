@@ -8,7 +8,36 @@ using SportCourtManagement_FrontEnd.Services.Api;
 using SportCourtManagement_FrontEnd.Services.Implementations;
 using SportCourtManagement_FrontEnd.Services.Interfaces;
 
-var builder = WebApplication.CreateBuilder(args);
+// Ensure ContentRootPath always points to the project folder containing Views and Areas
+var currentDir = Directory.GetCurrentDirectory();
+var contentRoot = currentDir;
+if (!Directory.Exists(Path.Combine(contentRoot, "Views")))
+{
+    var nestedPath = Path.Combine(currentDir, "SportCourtManagement_FrontEnd", "SportCourtManagement_FrontEnd");
+    if (Directory.Exists(Path.Combine(nestedPath, "Views")))
+    {
+        contentRoot = nestedPath;
+    }
+    else
+    {
+        var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (baseDir != null && !Directory.Exists(Path.Combine(baseDir.FullName, "Views")))
+        {
+            baseDir = baseDir.Parent;
+        }
+        if (baseDir != null && Directory.Exists(Path.Combine(baseDir.FullName, "Views")))
+        {
+            contentRoot = baseDir.FullName;
+        }
+    }
+}
+
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = contentRoot,
+    WebRootPath = Path.Combine(contentRoot, "wwwroot")
+});
 
 // Register global standardized JSON options
 builder.Services.AddSingleton(new JsonSerializerOptions
@@ -114,7 +143,18 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOrStaff", policy => policy.RequireRole("Admin", "Staff", "Coach"));
 });
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddRazorOptions(options =>
+    {
+        options.AreaViewLocationFormats.Clear();
+        options.AreaViewLocationFormats.Add("/Areas/{2}/Views/{1}/{0}.cshtml");
+        options.AreaViewLocationFormats.Add("/Areas/{2}/Views/Shared/{0}.cshtml");
+        options.AreaViewLocationFormats.Add("/Views/Shared/{0}.cshtml");
+
+        options.ViewLocationFormats.Clear();
+        options.ViewLocationFormats.Add("/Views/{1}/{0}.cshtml");
+        options.ViewLocationFormats.Add("/Views/Shared/{0}.cshtml");
+    });
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
