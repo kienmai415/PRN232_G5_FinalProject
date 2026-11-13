@@ -600,7 +600,13 @@ namespace SportCourtManagent_Server.Services.Implements
                 }
             }
 
-            var isOngoing = request.StartDateTime <= now && now < request.EndDateTime;
+            // Maintenance windows are entered and stored as Vietnam local time (datetime-local),
+            // whereas cancellation/refund timestamps above are UTC. Compare like with like.
+            TimeZoneInfo vietnamZone;
+            try { vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); }
+            catch (TimeZoneNotFoundException) { vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"); }
+            var localNow = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamZone);
+            var isOngoing = request.StartDateTime <= localNow && localNow < request.EndDateTime;
             var schedule = new MaintenanceSchedule
             {
                 CourtId = courtId,
@@ -627,7 +633,9 @@ namespace SportCourtManagent_Server.Services.Implements
                 Status = court.Status.ToString(),
                 Message = conflicts.Count > 0
                     ? $"Đã lên lịch bảo trì. Đã hủy {cancelled} lịch đặt và hoàn {totalRefunded:N0}đ."
-                    : "Đã lên lịch bảo trì. Không có lịch đặt bị ảnh hưởng.",
+                    : isOngoing
+                        ? "Sân đang bảo trì. Không có lịch đặt bị ảnh hưởng."
+                        : "Đã lên lịch bảo trì cho thời gian đã chọn; sân chưa chuyển trạng thái nếu lịch chưa bắt đầu.",
                 CancelledBookings = cancelled,
                 TotalRefunded = totalRefunded
             };
