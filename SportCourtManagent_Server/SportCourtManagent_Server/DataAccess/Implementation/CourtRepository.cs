@@ -219,7 +219,7 @@ namespace SportCourtManagent_Server.DataAccess.Implementation
 
         public async Task<bool> ExistsByCodeAsync(string courtCode, int? excludeCourtId = null)
         {
-            var query = _context.Courts.Where(c => c.CourtCode == courtCode && !c.IsDeleted);
+            var query = _context.Courts.Where(c => c.CourtCode == courtCode);
             if (excludeCourtId.HasValue)
             {
                 query = query.Where(c => c.CourtId != excludeCourtId.Value);

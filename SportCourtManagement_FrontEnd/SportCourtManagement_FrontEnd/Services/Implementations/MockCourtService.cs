@@ -7,6 +7,12 @@ namespace SportCourtManagement_FrontEnd.Services.Implementations;
 
 public class MockCourtService(MockDataStore store) : ICourtService
 {
+    public Task DeleteCourtAsync(int id)
+    {
+        store.Courts.RemoveAll(c => c.CourtId == id);
+        return Task.CompletedTask;
+    }
+
     public Task<ComplexStatsDto> GetStatsAsync() =>
         Task.FromResult(store.GetComplexStats());
 

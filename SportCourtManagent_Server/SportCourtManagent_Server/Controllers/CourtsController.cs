@@ -500,15 +500,15 @@ namespace SportCourtManagent_Server.Controllers
             catch (InvalidOperationException ex) { return BadRequest(ApiResults.Fail(ex.Message)); }
         }
 
-        // DELETE /api/courts/{id} — Giữ endpoint cũ, hành vi = Ngưng hoạt động
+        // DELETE /api/courts/{id} — Xóa mềm, giữ lại lịch sử
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                var result = await _courtService.DeactivateAsync(id);
-                return Ok(ApiResults.Ok(result, result.Message));
+                await _courtService.DeleteAsync(id);
+                return Ok(ApiResults.Ok(null, "Đã xóa sân khỏi tổ hợp."));
             }
             catch (KeyNotFoundException) { return NotFound(ApiResults.Fail("Không tìm thấy sân.", 404)); }
             catch (InvalidOperationException ex) { return BadRequest(ApiResults.Fail(ex.Message)); }

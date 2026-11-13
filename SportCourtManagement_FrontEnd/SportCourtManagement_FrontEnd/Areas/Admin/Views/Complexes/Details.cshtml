@@ -139,6 +139,15 @@ else
                                 </button>
                             </form>
                         }
+                        <form asp-area="Admin" asp-controller="Courts" asp-action="Delete" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@court.CourtId" />
+                            <input type="hidden" name="complexId" value="@Model.Complex.ComplexId" />
+                            <button type="submit" class="btn-ghost text-danger btn-sm" title="Xóa sân khỏi tổ hợp"
+                                    onclick="return confirm('Xóa sân này khỏi tổ hợp? Lịch sử đặt sân vẫn được giữ lại.')">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

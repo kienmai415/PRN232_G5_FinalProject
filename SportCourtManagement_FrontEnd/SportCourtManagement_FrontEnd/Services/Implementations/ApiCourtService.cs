@@ -8,6 +8,8 @@ namespace SportCourtManagement_FrontEnd.Services.Implementations;
 
 public class ApiCourtService(ApiClient api) : ICourtService
 {
+    public Task DeleteCourtAsync(int id) => api.DeleteAsync($"api/courts/{id}");
+
     public Task<ComplexStatsDto> GetStatsAsync()
     {
         var stats = api.GetDataAsync<ComplexStatsDto>("api/complexes/stats");

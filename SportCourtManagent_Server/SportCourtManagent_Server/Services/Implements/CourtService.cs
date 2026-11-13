@@ -641,8 +641,25 @@ namespace SportCourtManagent_Server.Services.Implements
             };
         }
 
-        /// <summary>Giữ tương thích: chuyển sang Ngưng hoạt động thay vì soft-delete.</summary>
-        public Task DeleteAsync(int id) => DeactivateAsync(id);
+        /// <summary>Ẩn sân khỏi danh sách nhưng giữ lại lịch sử đặt sân.</summary>
+        public async Task DeleteAsync(int id)
+        {
+            var court = await _courtRepo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException("Không tìm thấy sân.");
+            if (court.IsDeleted)
+                throw new InvalidOperationException("Sân đã bị xóa khỏi hệ thống.");
+
+            var now = DateTime.UtcNow;
+            var activeCount = await _db.Bookings.CountAsync(b => b.CourtId == id &&
+                (b.Status == BookingStatus.Confirmed ||
+                 (b.Status == BookingStatus.Pending && (!b.ExpiredAt.HasValue || b.ExpiredAt > now))));
+            if (activeCount > 0)
+                throw new InvalidOperationException($"Sân đang có {activeCount} lịch đặt đang hoạt động. Hãy xử lý các lịch đặt trước khi xóa sân.");
+
+            court.Status = CourtStatus.Inactive;
+            court.IsDeleted = true;
+            await _courtRepo.UpdateAsync(court);
+        }
 
         private static void ValidateMaintenanceWindow(DateTime start, DateTime end)
         {

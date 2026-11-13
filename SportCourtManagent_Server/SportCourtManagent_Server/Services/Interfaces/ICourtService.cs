@@ -40,7 +40,6 @@ namespace SportCourtManagent_Server.Services.Interfaces
         /// <summary>Lên lịch bảo trì: chặn slot, hủy+refund booking conflict nếu ConfirmRefund.</summary>
         Task<CourtLifecycleResultDto> ScheduleMaintenanceAsync(int courtId, ScheduleCourtMaintenanceRequest request);
 
-        [Obsolete("Dùng DeactivateAsync — không soft-delete sân nữa.")]
         Task DeleteAsync(int id);
 
         Task<bool> ExistsByCodeAsync(string courtCode, int? excludeCourtId = null);
