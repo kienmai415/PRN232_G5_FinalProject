@@ -480,6 +480,11 @@ namespace SportCourtManagement_FrontEnd.Controllers
             return RedirectToAction("StaffList");
         }
 
+        // ── GET: /manager/dashboard ──────────────────────────────────────────
+        /// <summary>
+        /// Dashboard vận hành cơ sở thể thao dành cho Quản lý:
+        /// Tổng hợp số lượng nhân sự, ca trực trong ngày, và số công việc đang chờ xử lý
+        /// </summary>
         [HttpGet("dashboard")]
         public async Task<IActionResult> Dashboard()
         {

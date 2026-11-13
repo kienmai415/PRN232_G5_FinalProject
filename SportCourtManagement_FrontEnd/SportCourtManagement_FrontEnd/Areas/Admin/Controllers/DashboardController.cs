@@ -9,6 +9,9 @@ namespace SportCourtManagement_FrontEnd.Areas.Admin.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class DashboardController(IReportService reportService) : Controller
 {
+    /// <summary>
+    /// Hiển thị Dashboard tổng quan vận hành, số liệu ca trực, bảo trì sân và doanh thu
+    /// </summary>
     public async Task<IActionResult> Index()
     {
         var vm = new DashboardViewModel
