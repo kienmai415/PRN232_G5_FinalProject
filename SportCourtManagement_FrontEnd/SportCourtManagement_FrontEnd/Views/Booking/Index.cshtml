@@ -568,9 +568,13 @@
                                 <span class="text-sc-muted">Tiền dịch vụ thêm:</span>
                                 <span id="summary-service-price" class="text-white fw-semibold">0đ</span>
                             </div>
-                            <div class="d-flex justify-content-between text-sc-amber" id="summary-promo-row" style="display: none;">
+                            <div class="d-none justify-content-between text-sc-amber" id="summary-promo-row">
                                 <span>Mã giảm giá:</span>
                                 <span id="summary-promo-code">—</span>
+                            </div>
+                            <div class="d-none justify-content-between text-sc-green" id="summary-discount-row">
+                                <span>Giảm giá (ước tính):</span>
+                                <span id="summary-discount">0đ</span>
                             </div>
                             <hr style="border-color: rgba(255,255,255,0.05);" />
                             <div class="d-flex justify-content-between align-items-baseline">
@@ -808,6 +812,8 @@
             let selectionStart = null; // slotId of the start selection
             let selectionEnd = null;   // slotId of the end selection
             let selectedSlotIds = [];  // Array of selected slotIds
+            let appliedCoupon = null;
+            let couponRequestId = 0;
 
             // --- Court Preview ---
             function updateCourtPreview() {
@@ -1269,19 +1275,6 @@
                 updateSummary();
             });
 
-            // --- Promo Code ---
-            $('#btn-apply-promo').on('click', function () {
-                const code = $('#promo-input').val().trim();
-                if (code) {
-                    $('#promo-msg').text('Mã "' + code + '" sẽ được áp dụng khi xác nhận.').css('color', '#10B981').show();
-                    $('#summary-promo-row').show();
-                    $('#summary-promo-code').text(code);
-                } else {
-                    $('#promo-msg').text('Vui lòng nhập mã giảm giá.').css('color', '#EF4444').show();
-                    $('#summary-promo-row').hide();
-                }
-            });
-
             // --- Update Summary Totals ---
             function updateSummary() {
                 let serviceTotal = 0;
@@ -1300,7 +1293,7 @@
                 });
 
                 let effectiveCourtTotal = courtTotal;
-                if (courtTotal > 0) {
+                if (selectedSlots.length > 0) {
                     let priceText = courtTotal.toLocaleString('vi-VN') + 'đ';
                     if (selectedSlots.length > 1) priceText += ` (x${selectedSlots.length} slot)`;
                     $('#summary-court-price').text(priceText);
@@ -1311,8 +1304,67 @@
                 }
 
                 const total = effectiveCourtTotal + serviceTotal;
-                $('#summary-total').text(total > 0 ? total.toLocaleString('vi-VN') + 'đ' : '—');
+                const date = dateInput.val();
+                const code = $('#promo-input').val().trim().toUpperCase();
+                const selectionKey = `${courtSelect.val()}:${selectedSlotIds.join(',')}`;
+                if (appliedCoupon && (appliedCoupon.amount !== total || appliedCoupon.date !== date || appliedCoupon.code !== code || appliedCoupon.selectionKey !== selectionKey || selectedSlotIds.length === 0)) {
+                    appliedCoupon = null;
+                    couponRequestId++;
+                    $('#promo-msg').removeClass('text-success').addClass('text-danger')
+                        .text('Đơn đặt sân đã thay đổi. Vui lòng áp dụng lại mã giảm giá.').show();
+                }
+                $('#summary-promo-row, #summary-discount-row').toggleClass('d-none', !appliedCoupon).toggleClass('d-flex', !!appliedCoupon);
+                if (appliedCoupon) {
+                    $('#summary-promo-code').text(appliedCoupon.code);
+                    $('#summary-discount').text('-' + appliedCoupon.discount.toLocaleString('vi-VN') + 'đ');
+                }
+                const discountedTotal = Math.max(0, total - (appliedCoupon?.discount || 0));
+                $('#summary-total').text(total > 0 || selectedSlots.length > 0 ? discountedTotal.toLocaleString('vi-VN') + 'đ' : '—');
+                return total;
             }
+
+            $('#promo-input').on('input', function () {
+                couponRequestId++;
+                appliedCoupon = null;
+                $('#promo-msg').hide();
+                updateSummary();
+            });
+
+            $('#btn-apply-promo').on('click', async function () {
+                const code = $('#promo-input').val().trim().toUpperCase();
+                const msg = $('#promo-msg');
+                appliedCoupon = null;
+                const requestId = ++couponRequestId;
+                const amount = updateSummary();
+                const date = dateInput.val();
+                const selectionKey = `${courtSelect.val()}:${selectedSlotIds.join(',')}`;
+                if (!code || !courtSelect.val() || !date || selectedSlotIds.length === 0) {
+                    msg.removeClass('text-success').addClass('text-danger')
+                        .text(!code ? 'Vui lòng nhập mã giảm giá.' : 'Vui lòng chọn sân, ngày và khung giờ trước khi áp dụng mã.').show();
+                    return;
+                }
+                msg.removeClass('text-success text-danger').text('Đang kiểm tra mã giảm giá...').show();
+                try {
+                    const result = await $.ajax({
+                        url: '/Booking/ValidateCoupon', type: 'POST', contentType: 'application/json',
+                        data: JSON.stringify({ promoCode: code, orderAmount: amount, bookingDate: date })
+                    });
+                    if (requestId !== couponRequestId || code !== $('#promo-input').val().trim().toUpperCase() ||
+                        date !== dateInput.val() || selectionKey !== `${courtSelect.val()}:${selectedSlotIds.join(',')}` ||
+                        amount !== updateSummary() || selectedSlotIds.length === 0) return;
+                    if (!result.valid) {
+                        msg.removeClass('text-success').addClass('text-danger')
+                            .text(result.message || 'Mã giảm giá không hợp lệ.').show();
+                        return;
+                    }
+                    appliedCoupon = { code: result.promoCode || code, amount, date, selectionKey, discount: Number(result.discountAmount) || 0 };
+                    msg.removeClass('text-danger').addClass('text-success').text('Áp dụng mã giảm giá thành công.').show();
+                    updateSummary();
+                } catch {
+                    if (requestId === couponRequestId)
+                        msg.removeClass('text-success').addClass('text-danger').text('Không thể kiểm tra mã giảm giá. Vui lòng thử lại.').show();
+                }
+            });
 
             updateSummary();
 
@@ -1700,17 +1752,7 @@
                     msgEl.removeClass('text-success').addClass('text-danger').text('Vui lòng nhập mã giảm giá.').show();
                     return;
                 }
-                msgEl.removeClass('text-danger').addClass('text-success').html(`<i class="bi bi-check-circle me-1"></i>Đã ghi nhận mã <strong>${code.toUpperCase()}</strong>. Ưu đãi sẽ được tự động áp dụng khi xác nhận đặt sân.`).show();
-            });
-
-            $('#btn-apply-promo').on('click', function () {
-                const code = $('#promo-input').val().trim();
-                const msgEl = $('#promo-msg');
-                if (!code) {
-                    msgEl.removeClass('text-success').addClass('text-danger').text('Vui lòng nhập mã giảm giá.').show();
-                    return;
-                }
-                msgEl.removeClass('text-danger').addClass('text-success').html(`<i class="bi bi-check-circle me-1"></i>Đã ghi nhận mã <strong>${code.toUpperCase()}</strong>. Ưu đãi sẽ được tự động áp dụng khi xác nhận đặt sân.`).show();
+                msgEl.removeClass('text-success').removeClass('text-danger').text('Mã sẽ được kiểm tra khi xác nhận đặt sân định kỳ.').show();
             });
 
             $('#recurring-booking-form').on('submit', function (e) {

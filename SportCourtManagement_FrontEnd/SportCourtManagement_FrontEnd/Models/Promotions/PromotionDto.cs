@@ -102,4 +102,5 @@ public class ValidateCouponRequestModel
 {
   public string PromoCode { get; set; } = string.Empty;
   public decimal OrderAmount { get; set; }
+  public DateTime? BookingDate { get; set; }
 }

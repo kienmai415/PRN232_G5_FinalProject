@@ -168,14 +168,14 @@ namespace SportCourtManagent_Server.Services.Implements
         return new ValidateCouponResponse { Valid = false, Message = "Mã giảm giá không tồn tại." };
       }
 
-      return CalculateCouponDiscount(promo, request.OrderAmount);
+      return CalculateCouponDiscount(promo, request.OrderAmount, request.BookingDate);
     }
 
     /// <summary>Helper method to calculate discount amount.</summary>
-    private static ValidateCouponResponse CalculateCouponDiscount(Promotion promo, decimal orderAmount)
+    private static ValidateCouponResponse CalculateCouponDiscount(Promotion promo, decimal orderAmount, DateTime? bookingDate)
     {
-      var today = DateTime.Now.Date;
-      if (!promo.IsActive || today < promo.StartDate.Date || today > promo.EndDate.Date)
+      var applicableDate = (bookingDate ?? DateTime.Now).Date;
+      if (!promo.IsActive || applicableDate < promo.StartDate.Date || applicableDate > promo.EndDate.Date)
       {
         return new ValidateCouponResponse { Valid = false, Message = "Mã giảm giá đã hết hạn hoặc đang bị khóa." };
       }

@@ -236,8 +236,9 @@ namespace SportCourtManagent_Server.Services.Implements
                 .ToListAsync();
 
             var pricingBySlot = court.CourtPricings
+                .Where(pricing => pricing.EffectiveFrom.Date <= targetDate)
                 .GroupBy(pricing => pricing.SlotId)
-                .ToDictionary(group => group.Key, group => group.First());
+                .ToDictionary(group => group.Key, group => group.OrderByDescending(pricing => pricing.EffectiveFrom).First());
 
             var nowLocal = DateTime.Now;
             var isPastDate = targetDate < nowLocal.Date;
@@ -263,7 +264,7 @@ namespace SportCourtManagent_Server.Services.Implements
                         SlotName = slot.SlotName,
                         StartTime = slot.StartTime,
                         EndTime = slot.EndTime,
-                        Price = pricing?.Price ?? court.PricePerHour * durationHours,
+                        Price = pricing?.Price ?? court.PricePerHour * (durationHours > 0 ? durationHours : 1),
                         Status = isSlotPast
                                     ? "Past"
                                     : isInactive
