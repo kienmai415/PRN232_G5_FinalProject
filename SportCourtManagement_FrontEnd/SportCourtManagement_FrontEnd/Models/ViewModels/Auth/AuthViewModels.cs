@@ -29,10 +29,18 @@ public class RegisterViewModel
     [Display(Name = "Email")]
     public string Email { get; set; } = "";
 
+    private string? _phone;
+
     [Required(ErrorMessage = "Vui lòng nhập số điện thoại")]
-    [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+    [RegularExpression(@"^(0[35789]\d{8}|02\d{9})$", ErrorMessage = "Số điện thoại không hợp lệ .")]
     [Display(Name = "Số điện thoại")]
-    public string? Phone { get; set; }
+    public string? Phone
+    {
+        get => _phone;
+        set => _phone = string.IsNullOrWhiteSpace(value)
+            ? null
+            : System.Text.RegularExpressions.Regex.Replace(value, @"[\s.-]", "");
+    }
 
     [Required(ErrorMessage = "Vui lòng nhập mật khẩu")]
     [DataType(DataType.Password)]
@@ -78,10 +86,17 @@ public class UpdateProfileViewModel
     [StringLength(100, ErrorMessage = "Họ tên không được vượt quá 100 ký tự")]
     public string FullName { get; set; } = "";
 
-    [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
-    [StringLength(15, ErrorMessage = "Số điện thoại không được vượt quá 15 ký tự")]
+    private string? _phone;
+
+    [RegularExpression(@"^(0[35789]\d{8}|02\d{9})$", ErrorMessage = "Số điện thoại không hợp lệ .")]
     [Display(Name = "Số điện thoại")]
-    public string? Phone { get; set; }
+    public string? Phone
+    {
+        get => _phone;
+        set => _phone = string.IsNullOrWhiteSpace(value)
+            ? null
+            : System.Text.RegularExpressions.Regex.Replace(value, @"[\s.-]", "");
+    }
 
     [Display(Name = "Ảnh đại diện")]
     public string? AvatarUrl { get; set; }

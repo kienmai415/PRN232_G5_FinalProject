@@ -26,8 +26,10 @@ public class CourtsController : Controller
     // GET: /Courts/Detail/{id}
     public IActionResult Detail(int id, DateOnly? date)
     {
+        if (id <= 0) return NotFound();
+        var today = DateOnly.FromDateTime(DateTime.Today);
         ViewBag.CourtId = id;
-        ViewBag.SelectedDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        ViewBag.SelectedDate = (date.HasValue && date.Value >= today) ? date.Value : today;
         return View();
     }
 
@@ -35,6 +37,13 @@ public class CourtsController : Controller
     [HttpGet]
     public async Task<IActionResult> GetCourtsJson(CourtSearchParams searchParams)
     {
+        if (searchParams.MinPrice.HasValue && searchParams.MaxPrice.HasValue && searchParams.MinPrice > searchParams.MaxPrice)
+        {
+            (searchParams.MinPrice, searchParams.MaxPrice) = (searchParams.MaxPrice, searchParams.MinPrice);
+        }
+        if (searchParams.MinPrice.HasValue && searchParams.MinPrice < 0) searchParams.MinPrice = 0;
+        if (searchParams.MaxPrice.HasValue && searchParams.MaxPrice < 0) searchParams.MaxPrice = 0;
+
         var result = await _apiService.SearchCourtsAsync(searchParams);
         return Json(result);
     }
@@ -43,7 +52,9 @@ public class CourtsController : Controller
     [HttpGet]
     public async Task<IActionResult> GetCourtDetailJson(int id)
     {
+        if (id <= 0) return BadRequest(new { message = "ID sân không hợp lệ." });
         var court = await _apiService.GetCourtDetailAsync(id);
+        if (court == null) return NotFound(new { message = "Không tìm thấy sân." });
         return Json(court);
     }
 

@@ -53,11 +53,11 @@
                         <div class="row g-2">
                             <div class="col-6">
                                 <label class="text-sc-muted font-inter uppercase mb-2 d-block" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Từ (đ)</label>
-                                <input type="number" name="MinPrice" placeholder="0" class="sc-input" />
+                                <input type="number" name="MinPrice" placeholder="0" min="0" class="sc-input" />
                             </div>
                             <div class="col-6">
                                 <label class="text-sc-muted font-inter uppercase mb-2 d-block" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Đến (đ)</label>
-                                <input type="number" name="MaxPrice" placeholder="500000" class="sc-input" />
+                                <input type="number" name="MaxPrice" placeholder="500000" min="0" class="sc-input" />
                             </div>
                         </div>
                     </div>
@@ -86,7 +86,7 @@
                         </p>
                         <div class="mb-3">
                             <label class="text-sc-muted font-inter uppercase mb-2 d-block" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Ngày chơi</label>
-                            <input type="date" name="Date" class="sc-input py-2" style="color-scheme: dark;" />
+                            <input type="date" name="Date" min="@DateTime.Today.ToString("yyyy-MM-dd")" class="sc-input py-2" style="color-scheme: dark;" />
                         </div>
                         <div>
                             <label class="text-sc-muted font-inter uppercase mb-2 d-block" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Khung giờ</label>

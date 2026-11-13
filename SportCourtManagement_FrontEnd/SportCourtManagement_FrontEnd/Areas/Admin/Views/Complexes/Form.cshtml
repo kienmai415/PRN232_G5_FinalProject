@@ -44,9 +44,10 @@
         </div>
         <div class="mb-3">
             <label class="form-label d-flex align-items-center justify-content-between mb-2">
-                <span>Loại sân thể thao cung cấp</span>
+                <span>Loại sân thể thao cung cấp <span class="text-danger">*</span></span>
                 <small class="text-secondary fw-normal">Chọn các môn thể thao có tại tổ hợp</small>
             </label>
+            <span asp-validation-for="CourtTypeIds" class="text-danger small field-error d-block mb-2"></span>
             <div class="row g-2">
                 @foreach (var t in Model.CourtTypeOptions)
                 {

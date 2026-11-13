@@ -51,6 +51,22 @@ public class CourtsController(ICourtService courtService) : Controller
                 return View("Create", model);
             }
 
+            if (model.PricePerHour <= 0)
+            {
+                if (IsAjaxRequest()) return BadRequest(new { success = false, message = "Giá thuê mỗi giờ phải lớn hơn 0." });
+                ModelState.AddModelError(nameof(model.PricePerHour), "Giá thuê mỗi giờ phải lớn hơn 0.");
+                await PopulateFormOptions(model, complexId);
+                return View("Create", model);
+            }
+
+            if (model.Pricings != null && model.Pricings.Any(p => p.Price <= 0))
+            {
+                if (IsAjaxRequest()) return BadRequest(new { success = false, message = "Giá cho từng ca khung giờ phải lớn hơn 0." });
+                ModelState.AddModelError(nameof(model.Pricings), "Giá cho từng ca khung giờ phải lớn hơn 0.");
+                await PopulateFormOptions(model, complexId);
+                return View("Create", model);
+            }
+
             var targetComplexId = complexId > 0 ? complexId : model.ComplexId;
             await courtService.CreateCourtAsync(MapToDto(model, targetComplexId));
             if (IsAjaxRequest())
@@ -120,6 +136,30 @@ public class CourtsController(ICourtService courtService) : Controller
             if (!ModelState.IsValid)
             {
                 if (IsAjaxRequest()) return JsonValidationErrors();
+                await PopulateFormOptions(model, model.ComplexId);
+                return View("Create", model);
+            }
+
+            if (!string.IsNullOrEmpty(model.CloseTime) && !string.IsNullOrEmpty(model.OpenTime) && model.CloseTime.CompareTo(model.OpenTime) <= 0)
+            {
+                if (IsAjaxRequest()) return BadRequest(new { success = false, message = "Giờ đóng cửa phải sau giờ mở cửa." });
+                ModelState.AddModelError(nameof(model.CloseTime), "Giờ đóng cửa phải sau giờ mở cửa.");
+                await PopulateFormOptions(model, model.ComplexId);
+                return View("Create", model);
+            }
+
+            if (model.PricePerHour <= 0)
+            {
+                if (IsAjaxRequest()) return BadRequest(new { success = false, message = "Giá thuê mỗi giờ phải lớn hơn 0." });
+                ModelState.AddModelError(nameof(model.PricePerHour), "Giá thuê mỗi giờ phải lớn hơn 0.");
+                await PopulateFormOptions(model, model.ComplexId);
+                return View("Create", model);
+            }
+
+            if (model.Pricings != null && model.Pricings.Any(p => p.Price <= 0))
+            {
+                if (IsAjaxRequest()) return BadRequest(new { success = false, message = "Giá cho từng ca khung giờ phải lớn hơn 0." });
+                ModelState.AddModelError(nameof(model.Pricings), "Giá cho từng ca khung giờ phải lớn hơn 0.");
                 await PopulateFormOptions(model, model.ComplexId);
                 return View("Create", model);
             }

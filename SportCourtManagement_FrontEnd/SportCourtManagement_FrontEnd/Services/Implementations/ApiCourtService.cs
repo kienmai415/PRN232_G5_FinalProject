@@ -85,7 +85,25 @@ public class ApiCourtService(ApiClient api) : ICourtService
     {
         var types = await api.GetDataAsync<List<CourtTypeDto>>("api/court-types");
         var list = types ?? [];
-        
+
+        // Chuẩn hóa tên tiếng Anh sang tiếng Việt để loại bỏ trùng lặp
+        foreach (var t in list)
+        {
+            if (t.TypeName.Equals("Badminton", StringComparison.OrdinalIgnoreCase))
+                t.TypeName = "Cầu lông";
+            else if (t.TypeName.Equals("Football", StringComparison.OrdinalIgnoreCase))
+                t.TypeName = "Bóng đá";
+            else if (t.TypeName.Equals("Basketball", StringComparison.OrdinalIgnoreCase))
+                t.TypeName = "Bóng rổ";
+        }
+
+        // Loại bỏ các mục trùng tên môn thể thao (chỉ giữ 1 bản ghi duy nhất cho mỗi môn)
+        var distinctList = list
+            .Where(t => t.IsActive)
+            .GroupBy(t => t.TypeName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
         var defaults = new (int Id, string Name)[]
         {
             (1, "Cầu lông"),
@@ -97,9 +115,9 @@ public class ApiCourtService(ApiClient api) : ICourtService
 
         foreach (var def in defaults)
         {
-            if (!list.Any(t => t.CourtTypeId == def.Id || t.TypeName.Equals(def.Name, StringComparison.OrdinalIgnoreCase)))
+            if (!distinctList.Any(t => t.TypeName.Equals(def.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                list.Add(new CourtTypeDto
+                distinctList.Add(new CourtTypeDto
                 {
                     CourtTypeId = def.Id,
                     TypeName = def.Name,
@@ -108,7 +126,7 @@ public class ApiCourtService(ApiClient api) : ICourtService
             }
         }
 
-        return list.OrderBy(t => t.CourtTypeId).ToList();
+        return distinctList.OrderBy(t => t.CourtTypeId).ToList();
     }
 
     public async Task<List<UserDto>> GetManagersAsync()

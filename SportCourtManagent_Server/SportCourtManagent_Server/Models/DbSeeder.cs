@@ -157,7 +157,55 @@ namespace SportCourtManagent_Server.Models
             await EnsureCoreAccountsAsync(context);
             await EnsureDemoUsersAsync(context);
 
-            // 5. Seed Court Types (Ensure all 5 standard court types exist)
+            // 5. Seed Court Types (Ensure all 5 standard court types exist & merge English duplicates)
+            var duplicateMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Badminton", "Cầu lông" },
+                { "Football", "Bóng đá" },
+                { "Basketball", "Bóng rổ" }
+            };
+
+            foreach (var (enName, vnName) in duplicateMap)
+            {
+                var enType = await context.CourtTypes.FirstOrDefaultAsync(t => t.TypeName.ToLower() == enName.ToLower());
+                var vnType = await context.CourtTypes.FirstOrDefaultAsync(t => t.TypeName.ToLower() == vnName.ToLower());
+
+                if (enType != null && vnType != null && enType.CourtTypeId != vnType.CourtTypeId)
+                {
+                    // Chuyển các sân đang trỏ tới mã môn tiếng Anh sang mã môn tiếng Việt
+                    var courtsToRemap = await context.Courts.Where(c => c.CourtTypeId == enType.CourtTypeId).ToListAsync();
+                    foreach (var c in courtsToRemap)
+                    {
+                        c.CourtTypeId = vnType.CourtTypeId;
+                    }
+
+                    // Chuyển dịch vụ tổ hợp liên quan
+                    var servicesToRemap = await context.ComplexCourtTypeServices.Where(s => s.CourtTypeId == enType.CourtTypeId).ToListAsync();
+                    foreach (var s in servicesToRemap)
+                    {
+                        var exists = await context.ComplexCourtTypeServices.AnyAsync(existing =>
+                            existing.ComplexId == s.ComplexId && existing.CourtTypeId == vnType.CourtTypeId && existing.ServiceId == s.ServiceId);
+                        if (!exists)
+                        {
+                            s.CourtTypeId = vnType.CourtTypeId;
+                        }
+                        else
+                        {
+                            context.ComplexCourtTypeServices.Remove(s);
+                        }
+                    }
+
+                    // Vô hiệu hóa bản ghi tiếng Anh bị trùng
+                    enType.IsActive = false;
+                }
+                else if (enType != null && vnType == null)
+                {
+                    enType.TypeName = vnName;
+                    enType.IsActive = true;
+                }
+            }
+            await context.SaveChangesAsync();
+
             var standardCourtTypes = new[]
             {
                 "Cầu lông",

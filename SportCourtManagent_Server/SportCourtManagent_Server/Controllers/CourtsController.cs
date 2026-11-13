@@ -103,6 +103,9 @@ namespace SportCourtManagent_Server.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetCourtDetail(int id)
         {
+            if (id <= 0)
+                return BadRequest(new { message = "ID sân không hợp lệ." });
+
             var customerDetail = await _courtService.GetCourtDetailAsync(id);
             
             var courtFromDb = await _context.Courts
@@ -318,6 +321,15 @@ namespace SportCourtManagent_Server.Controllers
 
             if (!TimeSpan.TryParse(dto.OpenTime, out var openTime) || !TimeSpan.TryParse(dto.CloseTime, out var closeTime))
                 return BadRequest(new { message = "Thời gian hoạt động không đúng định dạng." });
+
+            if (openTime >= closeTime)
+                return BadRequest(new { message = "Giờ đóng cửa phải sau giờ mở cửa." });
+
+            if (dto.PricePerHour <= 0)
+                return BadRequest(new { message = "Giá thuê mỗi giờ phải lớn hơn 0." });
+
+            if (dto.Pricings != null && dto.Pricings.Any(p => p.Price < 0))
+                return BadRequest(new { message = "Giá theo khung giờ không được nhỏ hơn 0." });
 
             if (!System.Enum.TryParse<SportCourtManagent_Server.Enums.CourtStatus>(dto.Status, true, out var status))
                 status = SportCourtManagent_Server.Enums.CourtStatus.Available;

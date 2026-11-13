@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SportCourtManagent_Server.DTOs.Court
 {
     public class CourtComplexDto
@@ -39,9 +41,17 @@ namespace SportCourtManagent_Server.DTOs.Court
 
     public class UpsertCourtComplexRequest
     {
+        [Required(ErrorMessage = "Tên tổ hợp không được để trống")]
+        [StringLength(150, ErrorMessage = "Tên tổ hợp tối đa 150 ký tự")]
         public string ComplexName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Địa chỉ không được để trống")]
+        [StringLength(300, ErrorMessage = "Địa chỉ tối đa 300 ký tự")]
         public string Address { get; set; } = string.Empty;
+
+        [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn quản lý phụ trách")]
         public int ManagerId { get; set; }
+
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
         public List<int>? CourtTypeIds { get; set; } = new();

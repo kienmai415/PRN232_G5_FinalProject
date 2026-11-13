@@ -4,6 +4,7 @@ using SportCourtManagent_Server.DataAccess.Interfaces;
 using SportCourtManagent_Server.DataAccess.Implementation;
 using SportCourtManagent_Server.Services.Interfaces;
 using SportCourtManagent_Server.Services.Implements;
+using SportCourtManagent_Server.BackgroundServices;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -80,6 +81,7 @@ builder.Services.AddSingleton<ITournamentLockManager, TournamentLockManager>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
 builder.Services.AddScoped<ITaskItemService, TaskItemService>();
+builder.Services.AddHostedService<MaintenanceWorkerService>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {

@@ -42,6 +42,11 @@ public class ComplexesController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ComplexFormViewModel model)
     {
+        if (model.CourtTypeIds == null || !model.CourtTypeIds.Any())
+        {
+            ModelState.AddModelError(nameof(model.CourtTypeIds), "Vui lòng chọn ít nhất một môn thể thao.");
+        }
+
         if (!ModelState.IsValid)
         {
             if (IsAjaxRequest()) return JsonValidationErrors();
@@ -85,6 +90,11 @@ public class ComplexesController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, ComplexFormViewModel model)
     {
+        if (model.CourtTypeIds == null || !model.CourtTypeIds.Any())
+        {
+            ModelState.AddModelError(nameof(model.CourtTypeIds), "Vui lòng chọn ít nhất một môn thể thao.");
+        }
+
         if (!ModelState.IsValid)
         {
             if (IsAjaxRequest()) return JsonValidationErrors();

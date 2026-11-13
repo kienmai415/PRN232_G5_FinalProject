@@ -40,9 +40,9 @@ namespace SportCourtManagent_Server.Services.Implements
             }
 
             var vnNow = GetVietnamTime(DateTime.UtcNow);
-            if (request.StartDateTime.Value <= vnNow)
+            if (request.StartDateTime.Value < vnNow.AddMinutes(-5))
             {
-                throw new ArgumentException("Thời gian bắt đầu phải ở trong tương lai.");
+                throw new ArgumentException("Thời gian bắt đầu không được ở trong quá khứ.");
             }
 
             if (request.EndDateTime.Value <= vnNow)
@@ -101,6 +101,9 @@ namespace SportCourtManagent_Server.Services.Implements
             }
 
 
+            var isOngoing = request.StartDateTime.Value <= vnNow && vnNow < request.EndDateTime.Value;
+            var initialStatus = isOngoing ? MaintenanceStatus.InProgress : request.Status;
+
             var schedule = new MaintenanceSchedule
             {
                 CourtId = request.CourtId.Value,
@@ -109,7 +112,7 @@ namespace SportCourtManagent_Server.Services.Implements
                 EndDateTime = request.EndDateTime.Value,
                 AssignedStaffId = request.AssignedStaffId,
                 Reason = request.Reason,
-                Status = request.Status,
+                Status = initialStatus,
                 Result = null
             };
 

@@ -23,10 +23,22 @@ namespace SportCourtManagent_Server.Services.Implements
             var list = types.Select(t => new CourtTypeDto
             {
                 CourtTypeId = t.CourtTypeId,
-                TypeName = t.TypeName,
+                TypeName = NormalizeTypeName(t.TypeName),
                 IsActive = t.IsActive,
                 CourtCount = t.Courts?.Count(c => !c.IsDeleted) ?? 0
             }).ToList();
+
+            // Loại bỏ các môn trùng lặp bằng cách nhóm theo tên môn chuẩn hóa
+            var distinctList = list
+                .GroupBy(t => t.TypeName, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new CourtTypeDto
+                {
+                    CourtTypeId = g.First().CourtTypeId,
+                    TypeName = g.Key,
+                    IsActive = g.Any(x => x.IsActive),
+                    CourtCount = g.Sum(x => x.CourtCount)
+                })
+                .ToList();
 
             var standardTypes = new (int Id, string Name)[]
             {
@@ -39,9 +51,9 @@ namespace SportCourtManagent_Server.Services.Implements
 
             foreach (var st in standardTypes)
             {
-                if (!list.Any(t => t.CourtTypeId == st.Id || t.TypeName.Equals(st.Name, StringComparison.OrdinalIgnoreCase)))
+                if (!distinctList.Any(t => t.TypeName.Equals(st.Name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    list.Add(new CourtTypeDto
+                    distinctList.Add(new CourtTypeDto
                     {
                         CourtTypeId = st.Id,
                         TypeName = st.Name,
@@ -51,7 +63,17 @@ namespace SportCourtManagent_Server.Services.Implements
                 }
             }
 
-            return list.OrderBy(t => t.CourtTypeId).ToList();
+            return distinctList.OrderBy(t => t.CourtTypeId).ToList();
+        }
+
+        private static string NormalizeTypeName(string? typeName)
+        {
+            if (string.IsNullOrWhiteSpace(typeName)) return string.Empty;
+            var trimmed = typeName.Trim();
+            if (trimmed.Equals("Badminton", StringComparison.OrdinalIgnoreCase)) return "Cầu lông";
+            if (trimmed.Equals("Football", StringComparison.OrdinalIgnoreCase)) return "Bóng đá";
+            if (trimmed.Equals("Basketball", StringComparison.OrdinalIgnoreCase)) return "Bóng rổ";
+            return trimmed;
         }
     }
 }

@@ -96,6 +96,17 @@ namespace SportCourtManagent_Server.Services.Implements
         {
             ValidateRequest(request);
 
+            var nameTrimmed = request.ComplexName.Trim();
+            if (await _context.CourtComplexes.AnyAsync(c => !c.IsDeleted && c.ComplexName.ToLower() == nameTrimmed.ToLower()))
+            {
+                throw new ArgumentException($"Tên tổ hợp '{request.ComplexName.Trim()}' đã tồn tại trong hệ thống.");
+            }
+
+            if (request.CourtTypeIds == null || !request.CourtTypeIds.Any())
+            {
+                throw new ArgumentException("Vui lòng chọn ít nhất một môn thể thao cho tổ hợp sân.");
+            }
+
             var manager = await _userRepo.GetByIdWithDetailsAsync(request.ManagerId);
             if (manager == null || !manager.IsActive)
                 throw new InvalidOperationException("Quản lý không tồn tại hoặc đã bị vô hiệu hóa.");
@@ -125,6 +136,12 @@ namespace SportCourtManagent_Server.Services.Implements
         public async Task<CourtComplexDto?> UpdateAsync(int id, UpsertCourtComplexRequest request)
         {
             ValidateRequest(request);
+
+            var nameTrimmed = request.ComplexName.Trim();
+            if (await _context.CourtComplexes.AnyAsync(c => !c.IsDeleted && c.ComplexId != id && c.ComplexName.ToLower() == nameTrimmed.ToLower()))
+            {
+                throw new ArgumentException($"Tên tổ hợp '{request.ComplexName.Trim()}' đã tồn tại trong hệ thống.");
+            }
 
             var complex = await _complexRepo.GetByIdWithDetailsAsync(id);
             if (complex == null) return null;
@@ -330,8 +347,12 @@ namespace SportCourtManagent_Server.Services.Implements
         {
             if (string.IsNullOrWhiteSpace(request.ComplexName))
                 throw new ArgumentException("Tên tổ hợp không được để trống.");
+            if (request.ComplexName.Trim().Length > 150)
+                throw new ArgumentException("Tên tổ hợp không được vượt quá 150 ký tự.");
             if (string.IsNullOrWhiteSpace(request.Address))
                 throw new ArgumentException("Địa chỉ không được để trống.");
+            if (request.Address.Trim().Length > 300)
+                throw new ArgumentException("Địa chỉ không được vượt quá 300 ký tự.");
             if (request.ManagerId <= 0)
                 throw new ArgumentException("Vui lòng chọn quản lý phụ trách.");
         }

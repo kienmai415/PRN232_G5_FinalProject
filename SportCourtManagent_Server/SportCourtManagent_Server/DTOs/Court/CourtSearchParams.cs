@@ -16,9 +16,11 @@ public class CourtSearchParams
     public string? Status { get; set; }
 
     /// <summary>Minimum price filter.</summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Giá tối thiểu phải >= 0")]
     public decimal? MinPrice { get; set; }
 
     /// <summary>Maximum price filter.</summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Giá tối đa phải >= 0")]
     public decimal? MaxPrice { get; set; }
 
     /// <summary>Filter courts with availability on this date.</summary>
@@ -28,6 +30,7 @@ public class CourtSearchParams
     public int? TimeSlotId { get; set; }
 
     /// <summary>Full-text search on court name.</summary>
+    [StringLength(100, ErrorMessage = "Từ khóa tìm kiếm tối đa 100 ký tự")]
     public string? SearchTerm { get; set; }
 
     /// <summary>Sort field: "price", "rating", "name" (default: "name").</summary>

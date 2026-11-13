@@ -22,10 +22,12 @@ public class ComplexFormViewModel
     public int? ComplexId { get; set; }
 
     [Required(ErrorMessage = "Tên tổ hợp không được để trống")]
+    [StringLength(150, ErrorMessage = "Tên tổ hợp tối đa 150 ký tự")]
     [Display(Name = "Tên tổ hợp")]
     public string ComplexName { get; set; } = "";
 
     [Required(ErrorMessage = "Địa chỉ không được để trống")]
+    [StringLength(300, ErrorMessage = "Địa chỉ tối đa 300 ký tự")]
     [Display(Name = "Địa chỉ")]
     public string Address { get; set; } = "";
 
@@ -164,7 +166,7 @@ public class CourtFormViewModel
     public string CloseTime { get; set; } = "22:00";
 
     [Display(Name = "Giá/giờ")]
-    [Range(0, double.MaxValue)]
+    [Range(10000, 10000000, ErrorMessage = "Giá thuê mỗi giờ phải từ 10.000đ đến 10.000.000đ")]
     public decimal PricePerHour { get; set; } = 100000;
 
     [Display(Name = "Kích thước")]
@@ -283,10 +285,18 @@ public class UserFormViewModel
     [Display(Name = "Email")]
     public string Email { get; set; } = "";
 
+    private string _phone = "";
+
     [Required(ErrorMessage = "Số điện thoại là bắt buộc")]
-    [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+    [RegularExpression(@"^(0[35789]\d{8}|02\d{9})$", ErrorMessage = "Số điện thoại không hợp lệ .")]
     [Display(Name = "Số điện thoại")]
-    public string Phone { get; set; } = "";
+    public string Phone
+    {
+        get => _phone;
+        set => _phone = string.IsNullOrWhiteSpace(value)
+            ? ""
+            : System.Text.RegularExpressions.Regex.Replace(value, @"[\s.-]", "");
+    }
 
     [Display(Name = "Mật khẩu")]
     [DataType(DataType.Password)]

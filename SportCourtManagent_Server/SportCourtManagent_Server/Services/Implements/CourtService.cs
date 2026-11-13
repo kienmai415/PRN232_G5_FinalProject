@@ -34,6 +34,20 @@ namespace SportCourtManagent_Server.Services.Implements
         {
             var query = _courtRepo.GetCourtsQueryable();
 
+            // Normalize inverted price range
+            if (p.MinPrice.HasValue && p.MaxPrice.HasValue && p.MinPrice.Value > p.MaxPrice.Value)
+            {
+                (p.MinPrice, p.MaxPrice) = (p.MaxPrice, p.MinPrice);
+            }
+
+            if (p.MinPrice.HasValue && p.MinPrice.Value < 0) p.MinPrice = 0;
+            if (p.MaxPrice.HasValue && p.MaxPrice.Value < 0) p.MaxPrice = 0;
+
+            if (p.Date.HasValue && p.Date.Value.Date < DateTime.Today)
+            {
+                p.Date = DateTime.Today;
+            }
+
             // Filters
             if (p.CourtTypeId.HasValue)
                 query = query.Where(c => c.CourtTypeId == p.CourtTypeId.Value);
@@ -131,6 +145,7 @@ namespace SportCourtManagent_Server.Services.Implements
        
         public async Task<CourtDetailDto?> GetCourtDetailAsync(int courtId)
         {
+            if (courtId <= 0) return null;
             var court = await _courtRepo.GetCourtDetailAsync(courtId);
             if (court is null) return null;
 
@@ -194,7 +209,7 @@ namespace SportCourtManagent_Server.Services.Implements
 
             // Get all bookings for this court on the given date (non-cancelled and non-expired)
             var targetDate = date.Date;
-            var now = DateTime.UtcNow;
+            var now = SportCourtManagent_Server.Helpers.DateTimeHelper.VietnamNow;
             var activeBookings = await _db.Bookings
                 .AsNoTracking()
                 .Where(b => b.CourtId == courtId
@@ -330,10 +345,30 @@ namespace SportCourtManagent_Server.Services.Implements
 
         public async Task<CourtDto> CreateAsync(CourtDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.CourtName))
+                throw new System.ArgumentException("Tên sân không được để trống.");
+            if (string.IsNullOrWhiteSpace(dto.CourtCode))
+                throw new System.ArgumentException("Mã sân không được để trống.");
+
             if (!System.TimeSpan.TryParse(dto.OpenTime, out var openTime) ||
                 !System.TimeSpan.TryParse(dto.CloseTime, out var closeTime))
             {
                 throw new System.ArgumentException("Giờ mở/đóng cửa không đúng định dạng.");
+            }
+
+            if (openTime >= closeTime)
+            {
+                throw new System.ArgumentException("Giờ đóng cửa phải sau giờ mở cửa.");
+            }
+
+            if (dto.PricePerHour <= 0)
+            {
+                throw new System.ArgumentException("Giá thuê mỗi giờ phải lớn hơn 0.");
+            }
+
+            if (await ExistsByCodeAsync(dto.CourtCode.Trim()))
+            {
+                throw new System.ArgumentException($"Mã sân '{dto.CourtCode.Trim()}' đã tồn tại trong hệ thống.");
             }
 
             if (!System.Enum.TryParse<CourtStatus>(dto.Status, true, out var status))
@@ -343,8 +378,8 @@ namespace SportCourtManagent_Server.Services.Implements
 
             var court = new Court
             {
-                CourtName = dto.CourtName,
-                CourtCode = dto.CourtCode,
+                CourtName = dto.CourtName.Trim(),
+                CourtCode = dto.CourtCode.Trim(),
                 CourtTypeId = dto.CourtTypeId,
                 ComplexId = dto.ComplexId,
                 Status = status,
@@ -373,6 +408,32 @@ namespace SportCourtManagent_Server.Services.Implements
 
             await _courtRepo.AddAsync(court);
 
+            // Save CourtPricings for all TimeSlots
+            var allSlots = await _db.TimeSlots.ToListAsync();
+            foreach (var slot in allSlots)
+            {
+                var inputPricing = dto.Pricings?.FirstOrDefault(p => p.SlotId == slot.SlotId);
+                decimal targetPrice;
+                if (inputPricing != null && inputPricing.Price > 0)
+                {
+                    targetPrice = inputPricing.Price;
+                }
+                else
+                {
+                    var durationHours = (decimal)(slot.EndTime - slot.StartTime).TotalHours;
+                    targetPrice = court.PricePerHour * (durationHours > 0 ? durationHours : 1.5m);
+                }
+
+                _db.CourtPricings.Add(new CourtPricing
+                {
+                    CourtId = court.CourtId,
+                    SlotId = slot.SlotId,
+                    Price = targetPrice,
+                    EffectiveFrom = DateTime.Today
+                });
+            }
+            await _db.SaveChangesAsync();
+
             var loaded = await _courtRepo.GetByIdWithDetailsAsync(court.CourtId);
             return loaded == null ? dto : MapToDto(loaded);
         }
@@ -382,10 +443,30 @@ namespace SportCourtManagent_Server.Services.Implements
             var court = await _courtRepo.GetByIdWithDetailsAsync(id);
             if (court == null) throw new System.Collections.Generic.KeyNotFoundException("Không tìm thấy sân.");
 
+            if (string.IsNullOrWhiteSpace(dto.CourtName))
+                throw new System.ArgumentException("Tên sân không được để trống.");
+            if (string.IsNullOrWhiteSpace(dto.CourtCode))
+                throw new System.ArgumentException("Mã sân không được để trống.");
+
             if (!System.TimeSpan.TryParse(dto.OpenTime, out var openTime) ||
                 !System.TimeSpan.TryParse(dto.CloseTime, out var closeTime))
             {
                 throw new System.ArgumentException("Giờ mở/đóng cửa không đúng định dạng.");
+            }
+
+            if (openTime >= closeTime)
+            {
+                throw new System.ArgumentException("Giờ đóng cửa phải sau giờ mở cửa.");
+            }
+
+            if (dto.PricePerHour <= 0)
+            {
+                throw new System.ArgumentException("Giá thuê mỗi giờ phải lớn hơn 0.");
+            }
+
+            if (await ExistsByCodeAsync(dto.CourtCode.Trim(), id))
+            {
+                throw new System.ArgumentException($"Mã sân '{dto.CourtCode.Trim()}' đã tồn tại trong hệ thống.");
             }
 
             if (!System.Enum.TryParse<CourtStatus>(dto.Status, true, out var status))
@@ -393,8 +474,23 @@ namespace SportCourtManagent_Server.Services.Implements
                 status = CourtStatus.Available;
             }
 
-            court.CourtName = dto.CourtName;
-            court.CourtCode = dto.CourtCode;
+            // Nếu người quản trị cập nhật sân sang trạng thái không phải Maintenance (VD: Available),
+            // tự động hoàn tất mọi lịch bảo trì đang diễn ra hoặc đã lên lịch của sân này
+            if (status != CourtStatus.Maintenance)
+            {
+                var ongoingSchedules = await _db.MaintenanceSchedules
+                    .Where(m => m.CourtId == id && (m.Status == MaintenanceStatus.InProgress || m.Status == MaintenanceStatus.Scheduled))
+                    .ToListAsync();
+
+                foreach (var ms in ongoingSchedules)
+                {
+                    ms.Status = MaintenanceStatus.Completed;
+                    ms.Result = "Kết thúc bảo trì sớm bởi Quản trị viên (Chuyển sân về trạng thái Hoạt động).";
+                }
+            }
+
+            court.CourtName = dto.CourtName.Trim();
+            court.CourtCode = dto.CourtCode.Trim();
             court.CourtTypeId = dto.CourtTypeId;
             court.ComplexId = dto.ComplexId;
             court.Status = status;
@@ -581,7 +677,7 @@ namespace SportCourtManagent_Server.Services.Implements
                     $"Có {conflicts.Count} lịch đặt bị trùng khung bảo trì. Vui lòng xác nhận hoàn tiền (ConfirmRefund=true).");
             }
 
-            var now = DateTime.UtcNow;
+            var now = SportCourtManagent_Server.Helpers.DateTimeHelper.VietnamNow;
             var cancelled = 0;
             decimal totalRefunded = 0;
 
