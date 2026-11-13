@@ -184,7 +184,19 @@
                 if (result.success) {
                     modal.hide();
                     showToast(result.message || 'Lưu thành công!', 'success');
-                    setTimeout(function () { window.location.reload(); }, 700);
+                    // The selected type in the form may differ from the tab that
+                    // was open. Show the saved type and clear stale list filters
+                    // so that a successful save is actually visible.
+                    const courtTypeId = formData.get('CourtTypeId');
+                    const serviceId = formData.get('ServiceId');
+                    const destination = new URL(window.location.href);
+                    if (courtTypeId) destination.searchParams.set('courtTypeId', courtTypeId);
+                    if (serviceId) destination.searchParams.set('focusServiceId', serviceId);
+                    else destination.searchParams.delete('focusServiceId');
+                    destination.searchParams.delete('search');
+                    destination.searchParams.delete('mode');
+                    destination.searchParams.delete('page');
+                    setTimeout(function () { window.location.assign(destination.toString()); }, 700);
                     return;
                 }
 
