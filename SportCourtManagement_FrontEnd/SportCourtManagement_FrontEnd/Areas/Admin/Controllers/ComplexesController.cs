@@ -140,7 +140,7 @@ public class ComplexesController(
     }
 
     public async Task<IActionResult> Services(int id, int? courtTypeId,
-        string? search, string? mode, int page = 1)
+        string? search, string? mode, int page = 1, int? focusServiceId = null)
     {
         var complex = await courtService.GetComplexByIdAsync(id);
         if (complex == null) return NotFound();
@@ -177,7 +177,8 @@ public class ComplexesController(
         }
 
         var filteredList = filtered
-            .OrderBy(o => o.ServiceMode)
+            .OrderBy(o => o.ServiceId == focusServiceId ? 0 : 1)
+            .ThenBy(o => o.ServiceMode)
             .ThenBy(o => o.ServiceName)
             .ToList();
 

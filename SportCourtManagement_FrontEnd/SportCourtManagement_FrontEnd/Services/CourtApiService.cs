@@ -838,7 +838,7 @@ public class CourtApiService : ICourtApiService
         }
     }
 
-    public async Task<ValidateCouponResultDto> ValidateCouponAsync(string promoCode, decimal orderAmount)
+    public async Task<ValidateCouponResultDto> ValidateCouponAsync(string promoCode, decimal orderAmount, DateTime? bookingDate = null)
     {
         try
         {
@@ -846,7 +846,8 @@ public class CourtApiService : ICourtApiService
             var payload = new
             {
                 PromoCode = promoCode?.Trim().ToUpper() ?? string.Empty,
-                OrderAmount = orderAmount
+                OrderAmount = orderAmount,
+                BookingDate = bookingDate
             };
             req.Content = JsonContent.Create(payload, null, _jsonOptions);
             var res = await _httpClient.SendAsync(req);

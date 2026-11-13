@@ -211,7 +211,7 @@ namespace SportCourtManagement_FrontEnd.Controllers
                     if (isSlotPast) status = "Past";
                 }
 
-                if (price <= 0 && court != null)
+                if (availSlot == null && price <= 0 && court != null)
                 {
                     var anyPricing = court.Pricings?.FirstOrDefault(p => p.Price > 0);
                     if (anyPricing != null)
@@ -492,33 +492,17 @@ namespace SportCourtManagement_FrontEnd.Controllers
                 ? $"{CleanSlotName(selectedSlots.First().SlotName)} - {CleanSlotName(selectedSlots.Last().SlotName)}"
                 : (selectedSlots.FirstOrDefault() != null ? CleanSlotName(selectedSlots.First().SlotName) : "Slot");
 
-            decimal subTotal = 0;
-            foreach (var sId in slotIds)
+            // Use the same dated slot prices shown by the availability API; picking an
+            // arbitrary court price here can make the draft differ from the wallet charge.
+            var availability = await _apiService.GetCourtAvailabilityAsync(courtId, parsedDate);
+            var selectedAvailability = availability?.Slots?
+                .Where(s => slotIds.Contains(s.SlotId)).ToList();
+            if (selectedAvailability == null || selectedAvailability.Count != slotIds.Distinct().Count())
             {
-                var pricing = court?.Pricings?.FirstOrDefault(p => p.SlotId == sId && p.Price > 0);
-                if (pricing != null)
-                {
-                    subTotal += pricing.Price;
-                }
-                else
-                {
-                    var anyPricing = court?.Pricings?.FirstOrDefault(p => p.Price > 0);
-                    if (anyPricing != null)
-                    {
-                        subTotal += anyPricing.Price;
-                    }
-                    else
-                    {
-                        var slotItem = selectedSlots.FirstOrDefault(s => s.SlotId == sId);
-                        decimal hours = 1.5m;
-                        if (slotItem != null && TimeSpan.TryParse(slotItem.StartTime, out var sT) && TimeSpan.TryParse(slotItem.EndTime, out var eT))
-                        {
-                            hours = (decimal)(eT - sT).TotalHours;
-                        }
-                        subTotal += (court?.PricePerHour > 0 ? court.PricePerHour : 100000m) * (hours > 0 ? hours : 1);
-                    }
-                }
+                TempData["ErrorMessage"] = "Không thể kiểm tra giá của các khung giờ đã chọn. Vui lòng thử lại.";
+                return RedirectToAction("Index", new { courtId, date = bookingDate });
             }
+            decimal subTotal = selectedAvailability.Sum(s => s.Price);
 
             var draftServices = new List<SingularBookingServiceResponseDto>();
             decimal serviceTotalAmount = 0;
@@ -543,6 +527,18 @@ namespace SportCourtManagement_FrontEnd.Controllers
                 }
             }
 
+            decimal discountAmount = 0;
+            if (!string.IsNullOrWhiteSpace(promoCode))
+            {
+                var coupon = await _apiService.ValidateCouponAsync(promoCode, subTotal + serviceTotalAmount, parsedDate);
+                if (!coupon.Valid)
+                {
+                    TempData["ErrorMessage"] = coupon.Message ?? "Không thể áp dụng mã giảm giá.";
+                    return RedirectToAction("Index", new { courtId, date = bookingDate });
+                }
+                discountAmount = coupon.DiscountAmount;
+            }
+
             var draftDto = new SingularBookingResponseDto
             {
                 BookingCode = "DRAFT-SINGLE",
@@ -555,8 +551,9 @@ namespace SportCourtManagement_FrontEnd.Controllers
                 EndTime = maxEnd,
                 SubTotal = subTotal,
                 ServicesAmount = serviceTotalAmount,
-                DiscountAmount = 0,
-                TotalAmount = subTotal + serviceTotalAmount,
+                DiscountAmount = discountAmount,
+                TotalAmount = Math.Max(0, subTotal + serviceTotalAmount - discountAmount),
+                PromoCode = string.IsNullOrWhiteSpace(promoCode) ? null : promoCode.Trim().ToUpperInvariant(),
                 Status = "Draft",
                 BookingServices = draftServices
             };
@@ -1042,7 +1039,7 @@ namespace SportCourtManagement_FrontEnd.Controllers
                 return Json(new { valid = false, message = "Vui lòng nhập mã ưu đãi." });
             }
 
-            var result = await _apiService.ValidateCouponAsync(model.PromoCode, model.OrderAmount);
+            var result = await _apiService.ValidateCouponAsync(model.PromoCode, model.OrderAmount, model.BookingDate);
             return Json(result);
         }
 

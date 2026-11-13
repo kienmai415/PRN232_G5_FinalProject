@@ -242,8 +242,19 @@ public class CourtsController(ICourtService courtService) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public Task<IActionResult> Delete(int id, int complexId) =>
-        Deactivate(id, complexId);
+    public async Task<IActionResult> Delete(int id, int complexId)
+    {
+        try
+        {
+            await courtService.DeleteCourtAsync(id);
+            TempData["Success"] = "Đã xóa sân khỏi tổ hợp.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction("Details", "Complexes", new { id = complexId });
+    }
 
     private async Task<CourtFormViewModel> BuildFormViewModel(int complexId, string? complexName)
     {

@@ -236,8 +236,9 @@ namespace SportCourtManagent_Server.Services.Implements
                 .ToListAsync();
 
             var pricingBySlot = court.CourtPricings
+                .Where(pricing => pricing.EffectiveFrom.Date <= targetDate)
                 .GroupBy(pricing => pricing.SlotId)
-                .ToDictionary(group => group.Key, group => group.First());
+                .ToDictionary(group => group.Key, group => group.OrderByDescending(pricing => pricing.EffectiveFrom).First());
 
             var nowLocal = DateTime.Now;
             var isPastDate = targetDate < nowLocal.Date;
@@ -263,7 +264,7 @@ namespace SportCourtManagent_Server.Services.Implements
                         SlotName = slot.SlotName,
                         StartTime = slot.StartTime,
                         EndTime = slot.EndTime,
-                        Price = pricing?.Price ?? court.PricePerHour * durationHours,
+                        Price = pricing?.Price ?? court.PricePerHour * (durationHours > 0 ? durationHours : 1),
                         Status = isSlotPast
                                     ? "Past"
                                     : isInactive
@@ -600,7 +601,13 @@ namespace SportCourtManagent_Server.Services.Implements
                 }
             }
 
-            var isOngoing = request.StartDateTime <= now && now < request.EndDateTime;
+            // Maintenance windows are entered and stored as Vietnam local time (datetime-local),
+            // whereas cancellation/refund timestamps above are UTC. Compare like with like.
+            TimeZoneInfo vietnamZone;
+            try { vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); }
+            catch (TimeZoneNotFoundException) { vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"); }
+            var localNow = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamZone);
+            var isOngoing = request.StartDateTime <= localNow && localNow < request.EndDateTime;
             var schedule = new MaintenanceSchedule
             {
                 CourtId = courtId,
@@ -627,14 +634,33 @@ namespace SportCourtManagent_Server.Services.Implements
                 Status = court.Status.ToString(),
                 Message = conflicts.Count > 0
                     ? $"Đã lên lịch bảo trì. Đã hủy {cancelled} lịch đặt và hoàn {totalRefunded:N0}đ."
-                    : "Đã lên lịch bảo trì. Không có lịch đặt bị ảnh hưởng.",
+                    : isOngoing
+                        ? "Sân đang bảo trì. Không có lịch đặt bị ảnh hưởng."
+                        : "Đã lên lịch bảo trì cho thời gian đã chọn; sân chưa chuyển trạng thái nếu lịch chưa bắt đầu.",
                 CancelledBookings = cancelled,
                 TotalRefunded = totalRefunded
             };
         }
 
-        /// <summary>Giữ tương thích: chuyển sang Ngưng hoạt động thay vì soft-delete.</summary>
-        public Task DeleteAsync(int id) => DeactivateAsync(id);
+        /// <summary>Ẩn sân khỏi danh sách nhưng giữ lại lịch sử đặt sân.</summary>
+        public async Task DeleteAsync(int id)
+        {
+            var court = await _courtRepo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException("Không tìm thấy sân.");
+            if (court.IsDeleted)
+                throw new InvalidOperationException("Sân đã bị xóa khỏi hệ thống.");
+
+            var now = DateTime.UtcNow;
+            var activeCount = await _db.Bookings.CountAsync(b => b.CourtId == id &&
+                (b.Status == BookingStatus.Confirmed ||
+                 (b.Status == BookingStatus.Pending && (!b.ExpiredAt.HasValue || b.ExpiredAt > now))));
+            if (activeCount > 0)
+                throw new InvalidOperationException($"Sân đang có {activeCount} lịch đặt đang hoạt động. Hãy xử lý các lịch đặt trước khi xóa sân.");
+
+            court.Status = CourtStatus.Inactive;
+            court.IsDeleted = true;
+            await _courtRepo.UpdateAsync(court);
+        }
 
         private static void ValidateMaintenanceWindow(DateTime start, DateTime end)
         {

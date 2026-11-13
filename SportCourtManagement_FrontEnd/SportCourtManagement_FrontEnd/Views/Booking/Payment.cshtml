@@ -119,6 +119,13 @@
                             }
                         </div>
 
+                        @if (!isServicePayment && Model.Any(b => b.DiscountAmount > 0))
+                        {
+                            <div class="d-flex justify-content-between text-sc-green mt-2">
+                                <span>Giảm giá:</span>
+                                <span>-@Model.Sum(b => b.DiscountAmount).ToString("N0")đ</span>
+                            </div>
+                        }
                         <hr style="border-color: rgba(255,255,255,0.05); margin: 12px 0;" />
                         <div class="d-flex justify-content-between align-items-baseline mt-3 pt-2">
                             <span class="text-white fw-bold" style="font-size: 15px;">@(isServicePayment ? "Tổng tiền dịch vụ mua thêm:" : "Tổng cộng:")</span>

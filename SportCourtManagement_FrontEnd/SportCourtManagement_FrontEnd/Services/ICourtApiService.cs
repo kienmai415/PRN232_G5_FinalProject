@@ -36,7 +36,7 @@ public interface ICourtApiService
     Task<PromotionDto?> UpdatePromotionAsync(int id, PromotionFormDto form);
     Task<bool> DeletePromotionAsync(int id);
     Task<List<PromotionDto>> GetActivePromotionsAsync();
-    Task<ValidateCouponResultDto> ValidateCouponAsync(string promoCode, decimal orderAmount);
+    Task<ValidateCouponResultDto> ValidateCouponAsync(string promoCode, decimal orderAmount, DateTime? bookingDate = null);
 
     // Bookings (Admin & Customer)
     Task<PagedResult<BookingDetailDto>> GetPagedMyBookingsAsync(string? keyword, DateTime? fromDate, DateTime? toDate, string? status, int pageNumber, int pageSize, string? token);
