@@ -419,21 +419,21 @@ The frontend is implemented with **ASP.NET Core MVC (.NET 8)**:
 
 #### Step 1: Run Database Migration & Seeding
 ```powershell
-cd SportCourtManagent_Server/SportCourtManagent_Server
+cd 05_SE1933_SportCourtManagement_Backend
 dotnet ef database update
 ```
 *(The system will connect to `.\SQLEXPRESS`, create `PRN232_SCM_DB`, and apply all migrations).*
 
 #### Step 2: Start Backend Web API
 ```powershell
-cd SportCourtManagent_Server/SportCourtManagent_Server
+cd 05_SE1933_SportCourtManagement_Backend
 dotnet run --launch-profile http
 ```
 * **Swagger API UI:** Open `http://localhost:5000/swagger` in your browser.
 
 #### Step 3: Start Frontend MVC Client
 ```powershell
-cd SportCourtManagement_FrontEnd/SportCourtManagement_FrontEnd
+cd 05_SE1933_SportCourtManagement_Frontend
 dotnet run --launch-profile http
 ```
 * **Web Application:** Open `http://localhost:5166` in your browser.
