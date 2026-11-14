@@ -30,6 +30,7 @@
 
 # Publish output
 **/publish/
+*.zip
 
 # Docker
 .env
