@@ -32,19 +32,19 @@ namespace SportCourtManagent_Server.Controllers
         {
             try
             {
-                // 1. Try in-memory first (typically pending)
-                var memBooking = await _inMemoryBookingRepository.GetByCodeAsync(bookingCode);
-                if (memBooking != null)
-                {
-                    return Ok(new { bookingCode = bookingCode, status = memBooking.Status });
-                }
-
-                // 2. Try database
+                // 1. Try database first so newly confirmed bookings are immediately reflected
                 var dbBooking = (await _bookingRepository.GetAllAsync())
                     .FirstOrDefault(b => string.Equals(b.BookingCode, bookingCode, StringComparison.OrdinalIgnoreCase));
                 if (dbBooking != null)
                 {
                     return Ok(new { bookingCode = bookingCode, status = dbBooking.Status.ToString() });
+                }
+
+                // 2. Try in-memory
+                var memBooking = await _inMemoryBookingRepository.GetByCodeAsync(bookingCode);
+                if (memBooking != null)
+                {
+                    return Ok(new { bookingCode = bookingCode, status = memBooking.Status.ToString() });
                 }
 
                 return NotFound(new { message = "Booking session has expired or does not exist." });

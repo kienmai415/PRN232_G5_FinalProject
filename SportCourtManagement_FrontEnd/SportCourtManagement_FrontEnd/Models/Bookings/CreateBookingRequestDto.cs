@@ -24,6 +24,8 @@ public class CreateBookingRequestDto
     public string? PromoCode { get; set; }
 
     public List<CreateBookingServiceItemDto> BookingServices { get; set; } = new();
+
+    public string? PaymentMethod { get; set; } = "BankTransfer";
 }
 
 public class CreateBookingServiceItemDto

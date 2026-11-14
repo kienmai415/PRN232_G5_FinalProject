@@ -26,5 +26,7 @@ namespace SportCourtManagent_Server.DTOs.Bookings
         public DateTime BookingDate { get; set; }
 
         public List<BookingServiceRequestDto> BookingServices { get; set; } = new List<BookingServiceRequestDto>();
+
+        public string? PaymentMethod { get; set; } = "BankTransfer";
     }
 }

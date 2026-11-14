@@ -71,7 +71,6 @@ public class ApiClient(HttpClient http, IHttpContextAccessor httpContextAccessor
 
         if (error is not null)
             throw new InvalidOperationException(error);
-
         if (wrapper is { Success: true })
             return wrapper.Data;
 
@@ -140,7 +139,7 @@ public class ApiClient(HttpClient http, IHttpContextAccessor httpContextAccessor
         {
             var baseUrl = http.BaseAddress?.ToString().TrimEnd('/') ?? "https://localhost:7075";
             throw new InvalidOperationException(
-                $"Không kết nối được API tại {baseUrl}. Hãy chạy SportCourtManagent_Server trước (dotnet run --launch-profile https).", ex);
+$"Không kết nối được API tại {baseUrl}. Hãy chạy SportCourtManagent_Server trước (dotnet run --launch-profile https).", ex);
         }
     }
 
@@ -208,6 +207,12 @@ public class ApiClient(HttpClient http, IHttpContextAccessor httpContextAccessor
                 ? "Backend từ chối yêu cầu (401). Token API không hợp lệ hoặc đã hết hạn — hãy đăng xuất và đăng nhập lại."
                 : $"API trả về phản hồi rỗng (HTTP {(int)response.StatusCode}). Kiểm tra Backend đang chạy tại https://localhost:7075.";
             return (null, msg);
+        }
+
+        if (!response.IsSuccessStatusCode &&
+string.Equals(response.Content.Headers.ContentType?.MediaType, "text/plain", StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, body);
         }
 
         try

@@ -539,30 +539,19 @@ namespace SportCourtManagement_FrontEnd.Controllers
                 discountAmount = coupon.DiscountAmount;
             }
 
-            var draftDto = new SingularBookingResponseDto
+            request.PaymentMethod = "BankTransfer";
+            var createdBooking = await _apiService.CreateSingularBookingAsync(request, token);
+            if (createdBooking == null || string.IsNullOrEmpty(createdBooking.BookingCode))
             {
-                BookingCode = "DRAFT-SINGLE",
-                CourtId = courtId,
-                CourtName = court?.CourtName ?? "Sân thể thao",
-                SlotId = slotIds.First(),
-                SlotName = slotRangeName,
-                BookingDate = parsedDate,
-                StartTime = minStart,
-                EndTime = maxEnd,
-                SubTotal = subTotal,
-                ServicesAmount = serviceTotalAmount,
-                DiscountAmount = discountAmount,
-                TotalAmount = Math.Max(0, subTotal + serviceTotalAmount - discountAmount),
-                PromoCode = string.IsNullOrWhiteSpace(promoCode) ? null : promoCode.Trim().ToUpperInvariant(),
-                Status = "Draft",
-                BookingServices = draftServices
-            };
+                TempData["ErrorMessage"] = "Không thể khởi tạo đơn đặt sân. Khung giờ này có thể đã có người khác đặt.";
+                return RedirectToAction("Index", new { courtId, date = bookingDate });
+            }
 
             HttpContext.Session.Remove("DraftRecurringRequest");
-            HttpContext.Session.SetString("DraftSingleRequest", JsonSerializer.Serialize(request));
-            TempData["BookingResponses"] = JsonSerializer.Serialize(new List<SingularBookingResponseDto> { draftDto });
+            HttpContext.Session.Remove("DraftSingleRequest");
+            TempData["BookingResponses"] = JsonSerializer.Serialize(new List<SingularBookingResponseDto> { createdBooking });
 
-            return RedirectToAction("Payment", new { bookingCodes = "DRAFT-SINGLE" });
+            return RedirectToAction("Payment", new { bookingCodes = createdBooking.BookingCode });
         }
 
         // GET: /Booking/Payment?bookingCodes=BK-001,BK-002&isServicePayment=true

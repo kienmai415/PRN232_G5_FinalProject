@@ -124,6 +124,8 @@ namespace SportCourtManagent_Server.Services.Implements
             var startTime = timeSlots.Min(s => s.StartTime);
             var endTime = timeSlots.Max(s => s.EndTime);
 
+            var isWalletPayment = string.Equals(dto.PaymentMethod, "Wallet", StringComparison.OrdinalIgnoreCase);
+
             var booking = new Booking
             {
                 BookingCode = bookingCode,
@@ -136,54 +138,64 @@ namespace SportCourtManagent_Server.Services.Implements
                 SubTotal = billingResult.SubTotal,
                 DiscountAmount = billingResult.DiscountAmount,
                 TotalAmount = billingResult.TotalAmount,
-                Status = BookingStatus.Confirmed,
-                ExpiredAt = null,
+                Status = isWalletPayment ? BookingStatus.Confirmed : BookingStatus.Pending,
+                ExpiredAt = isWalletPayment ? null : DateTime.UtcNow.AddMinutes(15),
                 PromotionId = billingResult.AppliedPromotion?.PromotionId,
                 BookingServices = billingResult.BookingServices
             };
 
-            // Check & deduct wallet balance
-            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
-            if (wallet == null)
+            if (isWalletPayment)
             {
-                wallet = new Wallet { UserId = userId, Balance = 10000000m };
-                await _context.Wallets.AddAsync(wallet);
+                // Check & deduct wallet balance
+                var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+                if (wallet == null)
+                {
+                    wallet = new Wallet { UserId = userId, Balance = 10000000m };
+                    await _context.Wallets.AddAsync(wallet);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (wallet.Balance < billingResult.TotalAmount)
+                {
+                    throw new InvalidOperationException($"Số dư ví không đủ. Số tiền cần thanh toán là {billingResult.TotalAmount:N0}đ nhưng ví của bạn chỉ còn {wallet.Balance:N0}đ. Vui lòng nạp thêm tiền.");
+                }
+
+                wallet.Balance -= billingResult.TotalAmount;
+                wallet.UpdatedAt = DateTime.UtcNow;
+
+                var wt = new WalletTransaction
+                {
+                    WalletId = wallet.WalletId,
+                    Amount = -billingResult.TotalAmount,
+                    Type = WalletTransactionType.Payment,
+                    Description = $"Thanh toán đặt sân lẻ #{bookingCode}",
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.WalletTransactions.AddAsync(wt);
+
+                await _bookingRepository.AddAsync(booking);
+                await _context.SaveChangesAsync();
+
+                // Đồng bộ bản ghi Payment
+                _context.Payments.Add(new Payment
+                {
+                    BookingId = booking.BookingId,
+                    Amount = booking.TotalAmount,
+                    PaymentMethod = PaymentMethod.Wallet,
+                    TransactionId = $"WT-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                    Status = PaymentStatus.Success,
+                    PaidAt = DateTime.UtcNow
+                });
+                wt.BookingId = booking.BookingId;
                 await _context.SaveChangesAsync();
             }
-
-            if (wallet.Balance < billingResult.TotalAmount)
+            else
             {
-                throw new InvalidOperationException($"Số dư ví không đủ. Số tiền cần thanh toán là {billingResult.TotalAmount:N0}đ nhưng ví của bạn chỉ còn {wallet.Balance:N0}đ. Vui lòng nạp thêm tiền.");
+                // Thanh toán chuyển khoản QR SePay: Lưu ở trạng thái Chờ thanh toán (Pending) và giữ chỗ 15 phút
+                await _bookingRepository.AddAsync(booking);
+                await _context.SaveChangesAsync();
+                await _inMemoryBookingRepository.SaveAsync(booking, TimeSpan.FromMinutes(15));
             }
-
-            wallet.Balance -= billingResult.TotalAmount;
-            wallet.UpdatedAt = DateTime.UtcNow;
-
-            var wt = new WalletTransaction
-            {
-                WalletId = wallet.WalletId,
-                Amount = -billingResult.TotalAmount,
-                Type = WalletTransactionType.Payment,
-                Description = $"Thanh toán đặt sân lẻ #{bookingCode}",
-                CreatedAt = DateTime.UtcNow
-            };
-            await _context.WalletTransactions.AddAsync(wt);
-
-            await _bookingRepository.AddAsync(booking);
-            await _context.SaveChangesAsync();
-
-            // Đồng bộ bản ghi Payment (trước đây thiếu → hoàn tiền bảo trì ra 0đ)
-            _context.Payments.Add(new Payment
-            {
-                BookingId = booking.BookingId,
-                Amount = booking.TotalAmount,
-                PaymentMethod = PaymentMethod.Wallet,
-                TransactionId = $"WT-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
-                Status = PaymentStatus.Success,
-                PaidAt = DateTime.UtcNow
-            });
-            wt.BookingId = booking.BookingId;
-            await _context.SaveChangesAsync();
 
             return new BookingResponseDto
             {
@@ -220,28 +232,44 @@ namespace SportCourtManagent_Server.Services.Implements
             var booking = await _inMemoryBookingRepository.GetByCodeAsync(dto.BookingCode);
             if (booking == null)
             {
-                throw new InvalidOperationException("Booking session has expired or does not exist.");
+                booking = await _context.Bookings
+                    .Include(b => b.BookingServices)
+                    .FirstOrDefaultAsync(b => b.BookingCode == dto.BookingCode);
+                if (booking == null)
+                {
+                    throw new InvalidOperationException("Booking session has expired or does not exist.");
+                }
             }
 
             await _inMemoryBookingRepository.RemoveAsync(dto.BookingCode);
 
             if (!Enum.TryParse<PaymentMethod>(dto.PaymentMethod, true, out var pm))
             {
-                throw new ArgumentException($"Invalid payment method '{dto.PaymentMethod}'. Valid methods are: VNPay, MoMo, BankTransfer, Cash, Wallet.");
+                pm = PaymentMethod.BankTransfer;
             }
 
             booking.Status = BookingStatus.Confirmed;
+            booking.ExpiredAt = null;
 
-            booking.User = null!;
-            booking.Court = null!;
-            booking.TimeSlot = null!;
-            booking.Promotion = null!;
-            foreach (var bs in booking.BookingServices)
+            if (booking.BookingId > 0)
             {
-                bs.Service = null!;
+                _context.Bookings.Update(booking);
+                await _context.SaveChangesAsync();
             }
+            else
+            {
+                booking.User = null!;
+                booking.Court = null!;
+                booking.TimeSlot = null!;
+                booking.Promotion = null!;
+                foreach (var bs in booking.BookingServices)
+                {
+                    bs.Service = null!;
+                }
 
-            await _bookingRepository.AddAsync(booking);
+                await _bookingRepository.AddAsync(booking);
+                await _context.SaveChangesAsync();
+            }
 
             var payment = new Payment
             {
@@ -253,6 +281,7 @@ namespace SportCourtManagent_Server.Services.Implements
                 PaidAt = DateTime.UtcNow
             };
             await _paymentRepository.AddAsync(payment);
+            await _context.SaveChangesAsync();
 
             var dbBooking = await _bookingRepository.GetByIdAsync(booking.BookingId);
             if (dbBooking == null)

@@ -133,7 +133,69 @@
                         </div>
                     </div>
 
-                    <!-- Wallet Payment Section -->
+                    <!-- VietQR Direct Payment Section -->
+                    @if (qrCode != null && !string.IsNullOrEmpty(qrCode.QrCodeUrl))
+                    {
+                        <div class="p-4 rounded-3 mb-4 text-center" style="background-color: #141B2D; border: 1px solid rgba(79, 110, 247, 0.3); box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                                <h6 class="text-white font-outfit mb-0 fw-bold">
+                                    <i class="bi bi-qr-code-scan me-2 text-primary"></i>Quét mã VietQR thanh toán tự động
+                                </h6>
+                                <span class="badge bg-primary bg-opacity-20 text-primary px-3 py-1 font-monospace" id="countdownTimer">
+                                    <i class="bi bi-clock me-1"></i>14:59
+                                </span>
+                            </div>
+
+                            <p class="text-sc-muted small mb-3">Mở ứng dụng Ngân hàng bất kỳ hoặc Ví điện tử để quét mã QR bên dưới:</p>
+
+                            <!-- QR Image Container -->
+                            <div class="d-inline-block p-3 bg-white rounded-4 shadow-lg mb-3">
+                                <img src="@qrCode.QrCodeUrl" alt="VietQR Payment" class="img-fluid" style="width: 260px; height: 260px; object-fit: contain;" />
+                            </div>
+
+                            <!-- Transfer Info Details -->
+                            <div class="text-start bg-dark p-3 rounded-3 mb-3 small border border-secondary border-opacity-25">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-white-50">Ngân hàng thụ hưởng:</span>
+                                    <strong class="text-white">@(qrCode.BankBin == "970415" ? "VietinBank" : (qrCode.BankBin == "970422" ? "MBBank" : "Ngân hàng"))</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-white-50">Số tài khoản:</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong class="text-white font-monospace" id="accNumber">@qrCode.AccountNumber</strong>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 text-white-50" onclick="copyText('@qrCode.AccountNumber', 'Đã chép số tài khoản!')" title="Sao chép">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-white-50">Chủ tài khoản:</span>
+                                    <strong class="text-white text-uppercase">@qrCode.AccountName</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-white-50">Số tiền:</span>
+                                    <strong class="text-sc-green fs-6 fw-bold">@totalAmount.ToString("N0")đ</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top border-white border-opacity-10">
+                                    <span class="text-warning fw-semibold">Nội dung chuyển khoản:</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong class="text-warning font-monospace fs-6 px-2 py-1 rounded" style="background: rgba(245, 158, 11, 0.15);" id="memoCode">@qrCode.BookingCode</strong>
+                                        <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2" onclick="copyText('@qrCode.BookingCode', 'Đã chép nội dung!')" title="Sao chép nội dung">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Waiting Pulse -->
+                            <div class="d-flex align-items-center justify-content-center gap-2 text-warning small py-2 px-3 rounded-pill" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2);">
+                                <span class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                                <span id="pollingStatusText">Đang chờ bạn chuyển khoản... Hệ thống sẽ tự động cập nhật ngay khi nhận được tiền.</span>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Wallet Payment Section (Alternative) -->
                     @{
                         var wallet = ViewBag.Wallet as SportCourtManagement_FrontEnd.Models.DTOs.WalletDto;
                         var hasEnough = wallet != null && wallet.Balance >= totalAmount;
@@ -142,7 +204,7 @@
                     <div class="p-4 rounded-3 mb-4 text-center" style="background-color: #141B2D; border: 1px solid rgba(255,255,255,0.05);">
                         @Html.AntiForgeryToken()
                         <h6 class="text-white font-outfit mb-3" style="font-weight: 700;">
-                            <i class="bi bi-wallet2 me-1 text-sc-blue-light"></i> Thanh toán bằng Ví điện tử
+                            <i class="bi bi-wallet2 me-1 text-sc-blue-light"></i> Hoặc thanh toán bằng Ví điện tử
                         </h6>
                         
                         <div class="d-flex justify-content-center gap-4 mb-3 text-start bg-dark p-3 rounded">
@@ -165,12 +227,9 @@
                         }
                         else
                         {
-                            <div class="alert alert-danger border-0 small text-start py-2 px-3 mb-3" style="background: rgba(239, 68, 68, 0.1); color: #FCA5A5;">
-                                <i class="bi bi-exclamation-circle-fill me-1"></i> Số dư ví không đủ. Vui lòng nạp thêm tiền.
+                            <div class="alert alert-secondary border-0 small text-start py-2 px-3 mb-3 text-white-50" style="background: rgba(255, 255, 255, 0.05);">
+                                <i class="bi bi-info-circle me-1"></i> Số dư ví chưa đủ (@((totalAmount - (wallet?.Balance ?? 0)).ToString("N0"))đ còn thiếu). Bạn có thể quét mã VietQR ở trên để thanh toán trực tiếp ngay!
                             </div>
-                            <a href="/Wallet" class="sc-btn sc-btn-gradient w-100 py-3 text-center text-white text-decoration-none d-block" style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #4F6EF7 0%, #3B5BDF 100%);">
-                                <i class="bi bi-plus-circle"></i> Nạp tiền vào ví (@((totalAmount - (wallet?.Balance ?? 0)).ToString("N0"))đ còn thiếu)
-                            </a>
                         }
                     </div>
 
@@ -187,6 +246,23 @@
 </main>
 
 @section Scripts {
+    <!-- Payment Success Modal -->
+    <div class="modal fade" id="paymentSuccessModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(8px);">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content text-center p-4" style="background: linear-gradient(145deg, #0F172A, #1E293B); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 24px; box-shadow: 0 16px 48px rgba(16, 185, 129, 0.25);">
+                <div class="modal-body py-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 80px; height: 80px; background: rgba(16, 185, 129, 0.15); border: 2px solid rgba(16, 185, 129, 0.5);">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 42px;"></i>
+                    </div>
+                    <h4 class="text-white font-outfit fw-bold mb-2">Thanh Toán Thành Công!</h4>
+                    <p class="text-white-50 small mb-4">Hệ thống đã nhận được tiền chuyển khoản qua VietQR. Đơn đặt sân của bạn đã được xác nhận thành công!</p>
+                    <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                    <span class="text-sc-green small fw-semibold">Đang chuyển tiếp tới chi tiết đặt sân...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .sc-card:hover {
             transform: none !important;
@@ -194,9 +270,61 @@
     </style>
 
     <script>
+        function copyText(text, message) {
+            navigator.clipboard.writeText(text).then(function() {
+                var toastEl = $('<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">' +
+                    '<div class="toast show align-items-center text-white bg-success border-0 shadow" role="alert">' +
+                    '<div class="d-flex"><div class="toast-body"><i class="bi bi-check-circle me-2"></i>' + message + '</div></div>' +
+                    '</div></div>');
+                $('body').append(toastEl);
+                setTimeout(function() { toastEl.fadeOut(300, function() { $(this).remove(); }); }, 2000);
+            });
+        }
+
         $(document).ready(function () {
             var bookingCodes = '@bookingCodesStr';
             var isServicePayment = @(isServicePayment ? "true" : "false");
+
+            // Auto-polling payment status every 2.5s
+            var isPolling = true;
+            var pollInterval = setInterval(function() {
+                if (!isPolling) return;
+                $.ajax({
+                    url: '/Booking/CheckStatus',
+                    type: 'GET',
+                    data: {
+                        bookingCodes: bookingCodes,
+                        isServicePayment: isServicePayment
+                    },
+                    success: function(res) {
+                        if (res && res.allPaid) {
+                            isPolling = false;
+                            clearInterval(pollInterval);
+                            $('#pollingStatusText').html('<strong class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Đã nhận thanh toán! Đang chuyển hướng...</strong>');
+                            var modal = new bootstrap.Modal(document.getElementById('paymentSuccessModal'));
+                            modal.show();
+                            setTimeout(function() {
+                                window.location.href = res.redirectUrl || ('/Booking/Success?bookingCodes=' + bookingCodes);
+                            }, 1800);
+                        }
+                    }
+                });
+            }, 2500);
+
+            // 15-minute countdown timer
+            var timeLeft = 15 * 60;
+            var timerInterval = setInterval(function() {
+                timeLeft--;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    $('#countdownTimer').html('<i class="bi bi-exclamation-triangle me-1"></i>Hết hạn');
+                    $('#pollingStatusText').text('Phiên thanh toán đã hết hạn. Vui lòng đặt lại.');
+                    return;
+                }
+                var m = Math.floor(timeLeft / 60);
+                var s = timeLeft % 60;
+                $('#countdownTimer').html('<i class="bi bi-clock me-1"></i>' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
+            }, 1000);
 
             $('#btnPayWithWallet').click(function() {
                 var btn = $(this);
@@ -212,6 +340,8 @@
                     },
                     success: function(res) {
                         if (res.success) {
+                            isPolling = false;
+                            clearInterval(pollInterval);
                             window.location.href = res.redirectUrl;
                         } else {
                             alert(res.message || "Thanh toán thất bại.");
