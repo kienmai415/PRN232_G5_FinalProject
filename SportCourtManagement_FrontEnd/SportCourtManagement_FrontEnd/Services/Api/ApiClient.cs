@@ -210,6 +210,12 @@ public class ApiClient(HttpClient http, IHttpContextAccessor httpContextAccessor
             return (null, msg);
         }
 
+        if (!response.IsSuccessStatusCode &&
+            string.Equals(response.Content.Headers.ContentType?.MediaType, "text/plain", StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, body);
+        }
+
         try
         {
             var wrapper = JsonSerializer.Deserialize<ApiResponse<T>>(body, JsonOptions);

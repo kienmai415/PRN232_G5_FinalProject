@@ -21,13 +21,19 @@ namespace SportCourtManagent_Server.Controllers
         }
 
         [HttpPost("register")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest, "text/plain")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
             {
                 var error = await _authService.RegisterAsync(request);
                 if (error != null)
-                    return BadRequest(ApiResults.Fail(error));
+                    return new ContentResult
+                    {
+                        StatusCode = StatusCodes.Status400BadRequest,
+                        ContentType = "text/plain; charset=utf-8",
+                        Content = error
+                    };
 
                 return Ok(ApiResults.Ok(null, "Đăng ký tài khoản thành công."));
             }
