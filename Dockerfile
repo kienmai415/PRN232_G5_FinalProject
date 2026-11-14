@@ -7,19 +7,19 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
-COPY ["SportCourtManagent_Server/SportCourtManagent_Server/SportCourtManagent_Server.csproj", "SportCourtManagent_Server/SportCourtManagent_Server/"]
-RUN dotnet restore "SportCourtManagent_Server/SportCourtManagent_Server/SportCourtManagent_Server.csproj"
+COPY ["05_SE1933_SportCourtManagement_Backend/05_SE1933_SportCourtManagement_Backend.csproj", "05_SE1933_SportCourtManagement_Backend/"]
+RUN dotnet restore "05_SE1933_SportCourtManagement_Backend/05_SE1933_SportCourtManagement_Backend.csproj"
 
 # Copy the rest of the source code
 COPY . .
 
-WORKDIR "/src/SportCourtManagent_Server/SportCourtManagent_Server"
-RUN dotnet build "SportCourtManagent_Server.csproj" -c Release -o /app/build
+WORKDIR "/src/05_SE1933_SportCourtManagement_Backend"
+RUN dotnet build "05_SE1933_SportCourtManagement_Backend.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "SportCourtManagent_Server.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "05_SE1933_SportCourtManagement_Backend.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "SportCourtManagent_Server.dll"]
+ENTRYPOINT ["dotnet", "05_SE1933_SportCourtManagement_Backend.dll"]

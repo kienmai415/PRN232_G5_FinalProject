@@ -13,10 +13,15 @@ var currentDir = Directory.GetCurrentDirectory();
 var contentRoot = currentDir;
 if (!Directory.Exists(Path.Combine(contentRoot, "Views")))
 {
-    var nestedPath = Path.Combine(currentDir, "SportCourtManagement_FrontEnd", "SportCourtManagement_FrontEnd");
-    if (Directory.Exists(Path.Combine(nestedPath, "Views")))
+    var newPath = Path.Combine(currentDir, "05_SE1933_SportCourtManagement_Frontend");
+    var legacyPath = Path.Combine(currentDir, "SportCourtManagement_FrontEnd", "SportCourtManagement_FrontEnd");
+    if (Directory.Exists(Path.Combine(newPath, "Views")))
     {
-        contentRoot = nestedPath;
+        contentRoot = newPath;
+    }
+    else if (Directory.Exists(Path.Combine(legacyPath, "Views")))
+    {
+        contentRoot = legacyPath;
     }
     else
     {

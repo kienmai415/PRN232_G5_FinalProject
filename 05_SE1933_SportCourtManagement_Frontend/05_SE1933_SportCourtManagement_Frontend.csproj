@@ -4,6 +4,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SportCourtManagement_FrontEnd</RootNamespace>
+    <AssemblyName>05_SE1933_SportCourtManagement_Frontend</AssemblyName>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>
