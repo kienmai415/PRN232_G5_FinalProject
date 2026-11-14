@@ -210,7 +210,7 @@ $"Không kết nối được API tại {baseUrl}. Hãy chạy SportCourtManagen
         }
 
         if (!response.IsSuccessStatusCode &&
-string.Equals(response.Content.Headers.ContentType?.MediaType, "text/plain", StringComparison.OrdinalIgnoreCase))
+            string.Equals(response.Content.Headers.ContentType?.MediaType, "text/plain", StringComparison.OrdinalIgnoreCase))
         {
             return (null, body);
         }
