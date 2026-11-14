@@ -52,6 +52,13 @@
         </form>
 
         <!-- Google Login Section -->
+        @{
+            var googleClientId = Configuration["GoogleSettings:ClientId"];
+            if (string.IsNullOrWhiteSpace(googleClientId))
+            {
+                googleClientId = "107931773955-pnfpld6vlj4or0ipjejs01qt46n7ldru.apps.googleusercontent.com";
+            }
+        }
         <div class="position-relative my-4 text-center">
             <hr class="border-secondary" />
             <span class="position-absolute top-50 start-50 translate-middle bg-dark px-3 text-secondary small text-uppercase fw-semibold" style="font-size: 0.75rem; border-radius: 4px;">hoặc</span>
@@ -59,7 +66,7 @@
 
         <div class="d-flex justify-content-center mb-3">
             <div id="g_id_onload"
-                 data-client_id="@Configuration["GoogleSettings:ClientId"]"
+                 data-client_id="@googleClientId"
                  data-context="signin"
                  data-ux_mode="popup"
                  data-callback="handleCredentialResponse"

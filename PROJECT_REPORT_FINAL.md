@@ -5,6 +5,7 @@
 ---
 
 # PROJECT REPORT
+### **GitHub Repository:** [https://github.com/kienmai415/PRN232_G5_FinalProject](https://github.com/kienmai415/PRN232_G5_FinalProject)
 ## SPORTS COURT MANAGEMENT SYSTEM
 ### (Online Sports Court Booking and Operational Management Platform)
 
@@ -28,6 +29,8 @@
 | 2 | **Mai Đoàn Trung Kiên** | HE182102 | Backend Lead / Security & Auth Specialist | Solution architecture, JWT Bearer authentication, RBAC authorization matrix, SePay payment webhook, Server configuration. |
 | 3 | **Đặng Minh Hiếu** | HE181575 | Database Architect / Core Backend Dev | EF Core Code-First design, SQL Server migrations, court catalog, slot pricing, booking engine, seed data setup. |
 | 4 | **Phan Đăng Quang** | HE186088 | Frontend Lead / Fullstack Integration | ASP.NET Core MVC architecture, Razor Views, Admin Area, HttpClient API service layer, responsive UI & validation. |
+| 5 | **Dương Anh Bằng** | HE181899 | Backend & Security Developer | Authentication plain-text/error handling, input validation, role verification and API error reporting. |
+| 6 | **Đào Xuân Quang** | HE170302 | Fullstack & Testing Developer | Booking coupons validation, discount total calculation, integration testing & demo rehearsal. |
 
 ---
 
