@@ -36,7 +36,6 @@ $excludePatterns = @(
     '\\SETUP_GUIDE\.md$',
     '\\SRS\.md$',
     '\\TECHNICAL_SPEC\.md$',
-    '\\seed_data\.sql$',
     '\\Dockerfile$',
     '\.zip$'
 )
@@ -66,6 +65,10 @@ $readZip = [System.IO.Compression.ZipFile]::OpenRead($zipFilePath)
 $entryCount = $readZip.Entries.Count
 $zipSize = (Get-Item $zipFilePath).Length
 $readZip.Dispose()
+
+# Đồng bộ thêm tên theo định dạng nhóm của trường
+$groupZipPath = Join-Path $rootPath "05_Group5_SE1933-NET_SportCourtManagement.zip"
+Copy-Item $zipFilePath $groupZipPath -Force
 
 Write-Host "`n========================================================" -ForegroundColor Green
 Write-Host " KẾT QUẢ ĐÓNG GÓI NỘP BÀI (SUBMISSION PACKAGE)" -ForegroundColor Green
